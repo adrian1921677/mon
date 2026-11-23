@@ -1,8 +1,10 @@
-"""Scan job pipeline stub — ScopeEngine + ProcessManager + Active-Gate."""
+"""Scan job pipeline — ScopeEngine + ProcessManager + Active-Gate + Findings."""
 
 from __future__ import annotations
 
+import tempfile
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -15,6 +17,7 @@ from app.db.models import (
     ScopeEntryStatus,
     ScopeEntryType,
 )
+from app.findings.persist import persist_normalized_findings
 from app.process.manager import ProcessManager
 from app.scope.active_gate import require_active_tests
 from app.scope.engine import ScopeEngine
@@ -26,6 +29,7 @@ from app.scanners.base import (
     ScannerNotImplementedError,
     ScannerNotInstalledError,
 )
+from app.scanners.cli_base import CliScannerAdapter
 from app.scanners.registry import ScannerRegistry, get_registry
 from app.services.audit import record_audit
 
@@ -63,6 +67,16 @@ def _targets_from_scope(entries: list[ScopeEntry]) -> list[ScopeTarget]:
     ]
 
 
+def _artifact_files_from_ctx(ctx: ScanContext) -> dict[str, Path]:
+    files: dict[str, Path] = {}
+    opts = ctx.options or {}
+    for key in ("nmap_xml", "trivy_json", "gitleaks_json"):
+        raw = opts.get(key)
+        if isinstance(raw, str) and raw:
+            files[key] = Path(raw)
+    return files
+
+
 async def create_scan_stub(
     db: Session,
     *,
@@ -76,11 +90,12 @@ async def create_scan_stub(
     scope_engine: ScopeEngine | None = None,
 ) -> Scan:
     """
-    Create a scan + tasks, validate scope, enforce active-gate.
+    Create a scan + tasks, validate scope, enforce active-gate, run adapters.
 
     Productive scanners that are not installed → task ``failed`` (clear reason).
     Skeletons that are installed but not CLI-ready → task ``failed`` with NotImplemented.
-    Echo only when ``allow_test_adapters`` (tests) — never persists production findings.
+    Phase-4 CLI adapters persist real findings (fingerprint dedup).
+    Echo only when ``allow_test_adapters`` (tests).
     """
     if not scanner_ids:
         raise ScanPipelineError("at least one scanner_id required")
@@ -89,7 +104,6 @@ async def create_scan_stub(
     engine = scope_engine or ScopeEngine()
     pm = process_manager or ProcessManager(max_concurrent=2, default_timeout_seconds=60.0)
 
-    # Resolve adapters
     adapters = []
     for sid in scanner_ids:
         if not reg.has(sid):
@@ -102,7 +116,6 @@ async def create_scan_stub(
             )
         adapters.append(adapter)
 
-    # Active-gate for any active adapter in this scan
     active_needed = [a for a in adapters if a.is_active]
     if active_needed:
         gate = require_active_tests(db)
@@ -128,7 +141,6 @@ async def create_scan_stub(
     if not targets:
         raise ScanPipelineError("no usable (non-rejected) scope entries")
 
-    # ScopeEngine: re-validate entries + membership for runtime connect targets
     for entry in entries:
         if entry.status is ScopeEntryStatus.rejected:
             continue
@@ -145,7 +157,6 @@ async def create_scan_stub(
             )
 
     for target in targets:
-        # CIDR is a scope definition, not a connect target — skip membership check.
         if target.type is ScopeEntryType.cidr:
             continue
         result = engine.check_target_in_scope(target, entries, resolve_dns=False)
@@ -155,7 +166,6 @@ async def create_scan_stub(
                 detail={"reason": result.reason.value, "target": target.value},
             )
 
-    # Adapter-level target shape: each scanner must accept at least one target
     for adapter in adapters:
         ok_any = False
         for target in targets:
@@ -206,7 +216,7 @@ async def create_scan_stub(
         for task in tasks:
             db.refresh(task)
             adapter = reg.get(task.scanner_id)
-            await run_task_stub(
+            await run_task(
                 db,
                 scan=scan,
                 task=task,
@@ -217,7 +227,6 @@ async def create_scan_stub(
                 allow_test_findings=allow_test_adapters and adapter.is_test_only,
             )
 
-    # Aggregate scan status
     db.refresh(scan)
     task_rows = db.query(ScanTask).filter(ScanTask.scan_id == scan.id).all()
     statuses = {t.status for t in task_rows}
@@ -228,8 +237,6 @@ async def create_scan_stub(
     elif ScanStatus.cancelled in statuses and len(statuses) == 1:
         scan.status = ScanStatus.cancelled
     else:
-        # Any failure / mix without success-only → failed if none completed, else completed
-        # with partial failures still "completed" if at least one ok? Prefer failed when all failed.
         if statuses <= {ScanStatus.failed, ScanStatus.interrupted, ScanStatus.cancelled}:
             scan.status = ScanStatus.failed
         elif ScanStatus.completed in statuses:
@@ -242,7 +249,11 @@ async def create_scan_stub(
     return scan
 
 
-async def run_task_stub(
+# Backwards-compatible alias used by API / older tests
+create_scan = create_scan_stub
+
+
+async def run_task(
     db: Session,
     *,
     scan: Scan,
@@ -253,11 +264,12 @@ async def run_task_stub(
     process_manager: ProcessManager,
     allow_test_findings: bool = False,
 ) -> ScanTask:
-    """Execute one task stub: install check → ProcessManager (echo) or clean failure."""
+    """Execute one task: install check → ProcessManager → parse → persist findings."""
     task.status = ScanStatus.running
     db.commit()
 
     compatible = [t for t in targets if adapter.validate_target(t).allowed]
+    work_dir = Path(tempfile.mkdtemp(prefix=f"hck-{adapter.scanner_id}-"))
     ctx = ScanContext(
         project_id=scan.project_id,
         scan_id=scan.id,
@@ -265,6 +277,7 @@ async def run_task_stub(
         targets=compatible or targets,
         depth=depth,
         allow_test_findings=allow_test_findings,
+        work_dir=work_dir,
     )
 
     try:
@@ -277,24 +290,57 @@ async def run_task_stub(
         task.handle_ref = result.handle_id
         task.exit_code = result.exit_code
 
-        # Parse / normalize — production adapters raise NotImplemented;
-        # echo returns findings only when allow_test_findings.
         artifacts = ParseArtifacts(
             stdout=result.stdout,
             stderr=result.stderr,
             exit_code=result.exit_code,
+            files=_artifact_files_from_ctx(ctx),
         )
         parsed = adapter.parse_results(artifacts)
         findings = adapter.normalize_findings(parsed, ctx)
-        # Invariant: never write findings to DB in Phase 3 stub
-        # (even test findings stay in-memory for test assertions only).
-        _ = findings
 
-        if result.ok:
+        # Persist only productive adapters. Echo/test findings stay in-memory.
+        finding_count = 0
+        if findings and not adapter.is_test_only:
+            stored = persist_normalized_findings(
+                db,
+                project_id=scan.project_id,
+                scan_id=scan.id,
+                scanner_id=adapter.scanner_id,
+                findings=findings,
+            )
+            finding_count = len(stored)
+            record_audit(
+                db,
+                action="scan.findings_persisted",
+                project_id=scan.project_id,
+                detail={
+                    "scan_id": scan.id,
+                    "task_id": task.id,
+                    "scanner_id": adapter.scanner_id,
+                    "count": finding_count,
+                },
+            )
+
+        succeeded = False
+        if isinstance(adapter, CliScannerAdapter):
+            succeeded = adapter.process_succeeded(result)
+        else:
+            succeeded = result.ok
+
+        if succeeded:
             task.status = ScanStatus.completed
+            if finding_count:
+                task.log_path = f"ok; findings={finding_count}; work={work_dir}"
+            else:
+                task.log_path = result.error or f"ok; findings=0; work={work_dir}"
         else:
             task.status = ScanStatus.failed
-            task.log_path = result.error or result.stderr[:500] or "process failed"
+            task.log_path = (
+                result.error
+                or (result.stderr[:500] if result.stderr else None)
+                or f"process failed (exit={result.exit_code})"
+            )
 
     except ScannerNotInstalledError as exc:
         task.status = ScanStatus.failed
@@ -312,3 +358,7 @@ async def run_task_stub(
     db.commit()
     db.refresh(task)
     return task
+
+
+# Alias for Phase-3 naming
+run_task_stub = run_task

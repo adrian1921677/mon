@@ -1,4 +1,4 @@
-# Hck — Lokale Pentesting-Plattform (Phase 3)
+# Hck — Lokale Pentesting-Plattform (Phase 4)
 
 Monorepo für die **lokale** Windows-11-Sicherheitsplattform. Scan-Engine und API laufen nur auf `127.0.0.1`.
 
@@ -10,8 +10,9 @@ Monorepo für die **lokale** Windows-11-Sicherheitsplattform. Scan-Engine und AP
 backend/           FastAPI + SQLite (WAL) + Alembic
   app/scope/       Scope Engine (Backend-only)
   app/process/     Process Manager (kein shell=True)
-  app/scanners/    Registry + Adapter-Interface + Skelette
-  app/jobs/        Scan-Pipeline-Stub
+  app/scanners/    Registry + Adapter (Phase-4-CLI: Nmap/Semgrep/Trivy/Gitleaks)
+  app/findings/    Fingerprint + Persistenz
+  app/jobs/        Scan-Pipeline
 apps/desktop/      Tauri 2 + Vite + React + TypeScript
 ```
 
@@ -22,13 +23,8 @@ apps/desktop/      Tauri 2 + Vite + React + TypeScript
 | Python 3.11+ | Windows: Installer oder **WSL2** |
 | Node.js 20+ | für Desktop-UI |
 | Rust + Tauri 2 | [Tauri Voraussetzungen](https://tauri.app/start/prerequisites/) — unter Windows WebView2 |
+| Optional | `nmap`, `semgrep`, `trivy`, `gitleaks` auf PATH |
 | Windows 11 | Zielplattform; Dev auch unter WSL/Linux möglich |
-
-### Windows vs. WSL
-
-- **Backend** läuft gut nativ unter Windows *oder* in WSL2.
-- **Tauri Desktop** am besten **nativ unter Windows** (WebView2).
-- Empfohlen: Backend in WSL oder Windows-venv; Desktop mit `npm run tauri dev` unter Windows. Alternativ UI nur mit Vite: `npm run dev` in `apps/desktop`.
 
 ## Backend starten
 
@@ -41,39 +37,22 @@ alembic upgrade head
 python -m app.main
 ```
 
-- Health: http://127.0.0.1:8765/health  
-- OpenAPI: http://127.0.0.1:8765/docs  
-
-Tests:
-
-```bash
-cd backend && pytest
-```
+Tests: `cd backend && pytest` (Parser mit Fixtures, kein Netzwerk-Scan in CI).
 
 ## Desktop starten
 
 ```bash
 cd apps/desktop
 npm install
-npm run generate:api   # optional, openapi.json ist committed
 npm run tauri dev
+# oder nur UI: npm run dev
 ```
 
-Nur UI (Backend separat):
+## Phase-4-Scope
 
-```bash
-cd apps/desktop && npm run dev
-```
+- Volle CLI-Integration: **Nmap**, **Semgrep**, **Trivy**, **Gitleaks**
+- Findings → DB (`findings` / `finding_occurrences` / `evidence`) mit Fingerprint-Dedup
+- Fehlendes Binary → klarer Fehler, **keine** Fake-Findings
+- Desktop: Scan starten, wenn Tool installiert
 
-## Phase-3-Scope
-
-Enthalten:
-
-- Scanner-Registry + gemeinsames Adapter-Interface
-- Skelette für alle geplanten Tools (saubere not-installed / NotImplemented-Pfade)
-- Echo-Adapter nur für Pipeline-Tests (nie produktive UI-Findings)
-- Tool Manager API auf `tool_installations`
-- Scan-Job-Pipeline-Stub (ScopeEngine + ProcessManager + Active-Gate)
-- Desktop: Tool-Manager-Ansicht + optionaler Scan-Stub ohne Fake-Findings
-
-**Nicht** enthalten: volle CLI für Nmap/Semgrep/Trivy/Gitleaks (Phase 4).
+**Phase 5:** OWASP ZAP, Nuclei

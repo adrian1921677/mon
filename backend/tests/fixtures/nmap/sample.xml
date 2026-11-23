@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<nmaprun scanner="nmap" args="nmap -sT -F -oX - 10.0.0.5" start="1" version="7.94">
+  <host>
+    <status state="up" reason="syn-ack"/>
+    <address addr="10.0.0.5" addrtype="ipv4"/>
+    <ports>
+      <port protocol="tcp" portid="22">
+        <state state="open" reason="syn-ack"/>
+        <service name="ssh" method="table"/>
+      </port>
+      <port protocol="tcp" portid="80">
+        <state state="open" reason="syn-ack"/>
+        <service name="http" method="table"/>
+      </port>
+      <port protocol="tcp" portid="443">
+        <state state="filtered" reason="no-response"/>
+      </port>
+    </ports>
+  </host>
+</nmaprun>

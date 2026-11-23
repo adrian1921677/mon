@@ -1,23 +1,24 @@
-"""Scanner registry + adapter interface (Phase 3)."""
+"""Scanner registry + adapter interface (Phase 3/4)."""
 
 from __future__ import annotations
 
 import pytest
 
+from app.db.models import ScopeEntryType
 from app.process.manager import ProcessManager
 from app.scanners.base import (
     Capability,
     InstallationStatus,
+    ParseArtifacts,
     ScanContext,
     ScannerNotImplementedError,
     ScannerNotInstalledError,
 )
 from app.scanners.bootstrap import PRODUCTIVE_ADAPTER_CLASSES, build_default_registry
+from app.scanners.cli_base import CliScannerAdapter
 from app.scanners.echo import EchoAdapter
 from app.scanners.registry import reset_registry
 from app.scope.types import ScopeTarget
-from app.db.models import ScopeEntryType
-
 
 EXPECTED_PRODUCTIVE_IDS = {
     "nmap",
@@ -33,6 +34,8 @@ EXPECTED_PRODUCTIVE_IDS = {
     "windows_host_audit",
     "linux_host_audit",
 }
+
+PHASE4_IDS = {"nmap", "semgrep", "trivy", "gitleaks"}
 
 
 @pytest.fixture()
@@ -55,37 +58,38 @@ def test_productive_list_excludes_echo(registry):
         assert adapter.scanner_id != "echo"
 
 
+def test_phase4_adapters_are_cli(registry):
+    for sid in PHASE4_IDS:
+        adapter = registry.get(sid)
+        assert isinstance(adapter, CliScannerAdapter)
+        assert adapter.integration_phase == 4
+
+
 @pytest.mark.asyncio
-async def test_skeleton_not_installed_or_not_implemented(registry):
-    nmap = registry.get("nmap")
-    info = await nmap.check_installation()
-    assert info.status in {
-        InstallationStatus.installed,
-        InstallationStatus.not_installed,
-        InstallationStatus.error,
-    }
-    ctx = ScanContext(
-        project_id="p",
-        scan_id="s",
-        task_id="t",
-        targets=[ScopeTarget(type=ScopeEntryType.ip, value="10.0.0.1")],
-    )
-    pm = ProcessManager(max_concurrent=1, default_timeout_seconds=5.0)
-    if info.status is not InstallationStatus.installed:
+async def test_phase4_missing_binary_fails_clean(registry):
+    """If binary missing → ScannerNotInstalledError; never fake findings."""
+    for sid in PHASE4_IDS:
+        adapter = registry.get(sid)
+        info = await adapter.check_installation()
+        if info.status is InstallationStatus.installed:
+            continue
+        if sid == "nmap":
+            targets = [ScopeTarget(type=ScopeEntryType.ip, value="10.0.0.1")]
+        else:
+            targets = [ScopeTarget(type=ScopeEntryType.path, value="/tmp")]
+        ctx = ScanContext(project_id="p", scan_id="s", task_id="t", targets=targets)
+        pm = ProcessManager(max_concurrent=1, default_timeout_seconds=5.0)
         with pytest.raises(ScannerNotInstalledError):
-            await nmap.execute(ctx, pm)
-    else:
-        with pytest.raises(ScannerNotImplementedError) as exc:
-            await nmap.execute(ctx, pm)
-        assert exc.value.phase == 4
+            await adapter.execute(ctx, pm)
 
 
 @pytest.mark.asyncio
-async def test_skeleton_normalize_never_fakes(registry):
-    semgrep = registry.get("semgrep")
+async def test_later_phase_skeleton_still_not_implemented(registry):
+    zap = registry.get("zap")
     ctx = ScanContext(project_id="p", scan_id="s", task_id="t", targets=[])
-    with pytest.raises(ScannerNotImplementedError):
-        semgrep.normalize_findings({}, ctx)
+    with pytest.raises(ScannerNotImplementedError) as exc:
+        zap.normalize_findings({}, ctx)
+    assert exc.value.phase == 5
 
 
 @pytest.mark.asyncio
@@ -103,8 +107,6 @@ async def test_echo_pipeline_via_process_manager():
     pm = ProcessManager(max_concurrent=1, default_timeout_seconds=10.0)
     result = await adapter.execute(ctx, pm)
     assert result.ok
-    from app.scanners.base import ParseArtifacts
-
     parsed = adapter.parse_results(
         ParseArtifacts(stdout=result.stdout, stderr=result.stderr, exit_code=result.exit_code)
     )
@@ -113,7 +115,6 @@ async def test_echo_pipeline_via_process_manager():
     assert findings[0].meta.get("test_only") is True
     assert findings[0].meta.get("not_a_security_finding") is True
 
-    # Without allow_test_findings → empty (no production findings)
     ctx2 = ScanContext(
         project_id="p",
         scan_id="s",

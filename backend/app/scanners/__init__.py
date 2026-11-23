@@ -1,4 +1,4 @@
-"""Scanner registry and adapters (Phase 3)."""
+"""Scanner registry and adapters (Phase 3 registry + Phase 4 CLI)."""
 
 from app.scanners.base import (
     Capability,

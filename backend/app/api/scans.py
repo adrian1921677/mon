@@ -1,4 +1,4 @@
-"""Scan pipeline stub API (Phase 3) — no fake findings persisted."""
+"""Scan pipeline API — ScopeEngine + ProcessManager; Phase-4 findings persisted."""
 
 from __future__ import annotations
 
