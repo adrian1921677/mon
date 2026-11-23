@@ -34,11 +34,11 @@
       "icons/icon.ico"
     ],
     "resources": {
-      "../../backend/app/": "backend/app/",
-      "../../backend/alembic/": "backend/alembic/",
-      "../../backend/pyproject.toml": "backend/pyproject.toml",
-      "../../backend/alembic.ini": "backend/alembic.ini",
-      "../../backend/README.md": "backend/README.md"
+      "../../../backend/app/": "backend/app/",
+      "../../../backend/alembic/": "backend/alembic/",
+      "../../../backend/pyproject.toml": "backend/pyproject.toml",
+      "../../../backend/alembic.ini": "backend/alembic.ini",
+      "../../../backend/README.md": "backend/README.md"
     },
     "windows": {
       "nsis": {

@@ -7,7 +7,7 @@ Zielplattform: **Windows 11**. Artefakte: **NSIS** (`*-setup.exe`) und **MSI** (
 | Inhalt | Quelle |
 | --- | --- |
 | Desktop-UI + Tauri-Runtime | `apps/desktop` Release-Build |
-| Backend-Quellbaum | gebündelt unter `$RESOURCE/backend/` (`app/`, `alembic/`, `pyproject.toml`, …) |
+| Backend-Quellbaum | gebündelt unter `$RESOURCE/backend/` (`app/`, `alembic/`, `pyproject.toml`, …); Quellpfade in `tauri.conf.json` relativ zu `src-tauri` → `../../../backend/…` |
 | Python-Interpreter / venv | **nicht** im Installer — nach Install `setup-backend.ps1 -Portable` |
 
 Kein eingebetteter CPython-Sidecar in Phase 9 (Portabilität vs. Größe). Stattdessen:
