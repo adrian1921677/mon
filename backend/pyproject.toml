@@ -1,7 +1,7 @@
 [project]
 name = "hck-backend"
-version = "0.2.0"
-description = "Local pentesting platform backend (Phase 2: Scope + Process Manager)"
+version = "0.3.0"
+description = "Local pentesting platform backend (Phase 3: Scanner Registry + Tool Manager)"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

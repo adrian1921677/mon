@@ -1,4 +1,4 @@
-# Hck Backend (Phase 2)
+# Hck Backend (Phase 3)
 
 Lokales FastAPI-Backend, bindet ausschließlich `127.0.0.1`.
 
@@ -49,7 +49,7 @@ python -m app.main
 uvicorn app.main:app --host 127.0.0.1 --port 8765
 ```
 
-Beim Start: laufende/pending Scans/Tasks → Status `interrupted` (Crash-Recovery).
+Beim Start: Scanner-Registry laden; laufende/pending Scans/Tasks → Status `interrupted`.
 
 - Health: `GET http://127.0.0.1:8765/health`
 - OpenAPI: `http://127.0.0.1:8765/docs`
@@ -70,12 +70,19 @@ pytest
 | GET/POST | `/api/v1/projects/{id}/scope` | Scope-Einträge listen / anlegen |
 | GET/PATCH/DELETE | `/api/v1/projects/{id}/scope/{entry_id}` | Scope lesen / ändern / löschen |
 | POST | `/api/v1/projects/{id}/scope/validate` | Dry-Run (entry/target/redirect/ssrf/active_gate) |
+| GET | `/api/v1/tools` | Live-Probe aller produktiven Scanner |
+| POST | `/api/v1/tools/refresh` | Probe + Persistenz in `tool_installations` |
+| GET | `/api/v1/tools/installations` | Persistierte Installationen |
+| GET | `/api/v1/tools/{scanner_id}` | Einzelnes Tool |
+| GET/POST | `/api/v1/projects/{id}/scans` | Scans listen / Pipeline-Stub starten |
+| GET | `/api/v1/projects/{id}/scans/{scan_id}` | Scan inkl. Tasks |
 | GET/PUT | `/api/v1/settings`, `/api/v1/settings/{key}` | Settings (z. B. `security.active_tests_enabled`) |
 | GET | `/api/v1/audit-events` | Audit-Events |
 
-## Phase-2-Module
+## Phase-3-Module
 
-- `app/scope/` — Scope Engine (IP/CIDR/Domain/URL/API-Spec/Path, DNS, Rebinding, Redirect, SSRF, Metadata-Block, Rate-/Zeit-Hooks, Active-Test-Gate)
-- `app/process/` — Process Manager (`create_subprocess_exec`, kein `shell=True`, Timeout/Cancel/Concurrency, Log-Sanitizing, Interrupted-Recovery)
+- `app/scanners/` — Registry, Adapter-Interface, Skelette (Nmap, Greenbone, TShark, ZAP, Nuclei, testssl, Semgrep, Trivy, Gitleaks, Schemathesis, Host Audits), Echo nur für Pipeline-Tests
+- `app/jobs/pipeline.py` — Scan-Stub mit ScopeEngine + ProcessManager + Active-Gate
+- `app/services/tool_manager.py` — `tool_installations` listen/prüfen
 
-**Nicht** in Phase 2: Scanner-Adapter (Phase 3+).
+**Nicht** in Phase 3: volle CLI-Integration (Phase 4: Nmap/Semgrep/Trivy/Gitleaks). Keine Fake-Findings.

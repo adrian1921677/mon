@@ -56,6 +56,50 @@ export interface ScopeValidateResponse {
   meta: Record<string, unknown>;
 }
 
+/** Phase-3 Tool Manager / scan stub types. */
+export interface ToolLiveRead {
+  scanner_id: string;
+  display_name: string;
+  description: string;
+  capabilities: string[];
+  preferred_runtime: string;
+  is_active: boolean;
+  is_test_only: boolean;
+  integration_phase: number;
+  status: string;
+  version: string | null;
+  path_or_runtime: string;
+  message: string;
+  binary_path: string | null;
+  checked_at: string | null;
+  persisted: boolean;
+  meta: Record<string, unknown>;
+}
+
+export interface ScanTaskRead {
+  id: string;
+  scan_id: string;
+  scanner_id: string;
+  status: string;
+  pid: number | null;
+  handle_ref: string | null;
+  exit_code: number | null;
+  log_path: string | null;
+  created_at: string;
+}
+
+export interface ScanRead {
+  id: string;
+  project_id: string;
+  profile_id: string | null;
+  status: string;
+  started_at: string | null;
+  finished_at: string | null;
+  scope_snapshot_json: unknown;
+  created_at: string;
+  tasks: ScanTaskRead[];
+}
+
 export const DEFAULT_BASE_URL = "http://127.0.0.1:8765";
 export const SETTING_ACTIVE_TESTS = "security.active_tests_enabled";
 
@@ -186,6 +230,33 @@ export class HckApiClient {
   ): Promise<ScopeValidateResponse> {
     return this.request<ScopeValidateResponse>(
       `/api/v1/projects/${encodeURIComponent(projectId)}/scope/validate`,
+      { method: "POST", body: JSON.stringify(body) },
+    );
+  }
+
+  listTools(persist = false): Promise<ToolLiveRead[]> {
+    const params = new URLSearchParams();
+    if (persist) params.set("persist", "true");
+    const q = params.toString();
+    return this.request<ToolLiveRead[]>(`/api/v1/tools${q ? `?${q}` : ""}`);
+  }
+
+  refreshTools(): Promise<unknown[]> {
+    return this.request<unknown[]>("/api/v1/tools/refresh", { method: "POST" });
+  }
+
+  listScans(projectId: string): Promise<ScanRead[]> {
+    return this.request<ScanRead[]>(
+      `/api/v1/projects/${encodeURIComponent(projectId)}/scans`,
+    );
+  }
+
+  createScan(
+    projectId: string,
+    body: { scanner_ids: string[]; depth?: string },
+  ): Promise<ScanRead> {
+    return this.request<ScanRead>(
+      `/api/v1/projects/${encodeURIComponent(projectId)}/scans`,
       { method: "POST", body: JSON.stringify(body) },
     );
   }
