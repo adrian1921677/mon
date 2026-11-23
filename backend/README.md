@@ -1,4 +1,4 @@
-# Hck Backend (Phase 6)
+# Hck Backend (Phase 7)
 
 Lokales FastAPI-Backend, bindet ausschließlich `127.0.0.1`.
 
@@ -9,6 +9,7 @@ Lokales FastAPI-Backend, bindet ausschließlich `127.0.0.1`.
 - Optional Phase-4-Binaries: `nmap`, `semgrep`, `trivy`, `gitleaks`
 - Optional Phase-5-Binaries: `zap-baseline.py` / `zap.sh`, `nuclei`
 - Optional Phase-6-Binaries: `schemathesis` / `st`
+- Optional Phase-7: `gvm-cli` (gvm-tools) + Greenbone Docker; `powershell`/`pwsh`; WSL2/`bash`
 - Optional: [uv](https://github.com/astral-sh/uv)
 
 ## Setup
@@ -62,12 +63,12 @@ Parser-/Normalize-Tests nutzen Fixtures unter `tests/fixtures/` (kein Netzwerk-S
 | GET/POST | `/api/v1/projects/{id}/scans` | Scans listen / starten |
 | GET/PUT | `/api/v1/settings` | u. a. `security.active_tests_enabled` |
 
-## Phase 6
+## Phase 7
 
-- Volle CLI: **Schemathesis** (`app/scanners/schemathesis.py`)
-- Scope: `api_spec` (+ `url` als API-Basis bei Datei-Spec)
-- Active-Gate Pflicht; Depth steuert Phases/Mode (kein stateful default)
-- Kurz-Doku: `app/scanners/docs/schemathesis.md`
+- **Greenbone / OpenVAS** (`app/scanners/greenbone.py`) — GMP via `gvm-cli` / Docker; Active-Gate
+- **Windows Host Audit** — read-only PowerShell-Skript
+- **Linux Host Audit** — read-only Bash via WSL2/native
+- Kurz-Doku: `app/scanners/docs/greenbone.md`, `windows_host_audit.md`, `linux_host_audit.md`
 - Findings → DB (Fingerprint-Dedup); fehlendes Binary → klarer Fehler, **keine** Fake-Findings
 
-**Phase 7:** Greenbone, Host Security
+**Phase 8:** Findings-UI, Dashboard, Reporting

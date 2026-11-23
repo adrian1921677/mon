@@ -1,0 +1,42 @@
+{
+  "scanner": "windows_host_audit",
+  "host": "DESKTOP-LAB",
+  "os": "Microsoft Windows NT 10.0.26100.0",
+  "checks": [
+    {
+      "id": "defender.realtime",
+      "title": "Windows Defender Real-time Protection",
+      "status": "fail",
+      "severity": "high",
+      "detail": "Disabled"
+    },
+    {
+      "id": "firewall.Domain",
+      "title": "Firewall profile Domain",
+      "status": "pass",
+      "severity": "info",
+      "detail": "Enabled"
+    },
+    {
+      "id": "smb.v1",
+      "title": "SMBv1 protocol",
+      "status": "fail",
+      "severity": "high",
+      "detail": "SMBv1 is enabled"
+    },
+    {
+      "id": "rdp.nla",
+      "title": "RDP Network Level Authentication",
+      "status": "warn",
+      "severity": "medium",
+      "detail": "NLA not required"
+    },
+    {
+      "id": "uac.enable",
+      "title": "User Account Control (EnableLUA)",
+      "status": "pass",
+      "severity": "info",
+      "detail": "Enabled"
+    }
+  ]
+}

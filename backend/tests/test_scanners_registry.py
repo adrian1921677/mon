@@ -38,6 +38,7 @@ EXPECTED_PRODUCTIVE_IDS = {
 PHASE4_IDS = {"nmap", "semgrep", "trivy", "gitleaks"}
 PHASE5_IDS = {"zap", "nuclei"}
 PHASE6_IDS = {"schemathesis"}
+PHASE7_IDS = {"greenbone", "windows_host_audit", "linux_host_audit"}
 
 
 @pytest.fixture()
@@ -132,13 +133,41 @@ async def test_phase6_missing_binary_fails_clean(registry):
             await adapter.execute(ctx, pm)
 
 
+def test_phase7_adapters_are_cli(registry):
+    for sid in PHASE7_IDS:
+        adapter = registry.get(sid)
+        assert isinstance(adapter, CliScannerAdapter)
+        assert adapter.integration_phase == 7
+    assert registry.get("greenbone").is_active is True
+    assert registry.get("windows_host_audit").is_active is False
+    assert registry.get("linux_host_audit").is_active is False
+
+
+@pytest.mark.asyncio
+async def test_phase7_missing_binary_fails_clean(registry):
+    for sid in PHASE7_IDS:
+        adapter = registry.get(sid)
+        info = await adapter.check_installation()
+        if info.status is InstallationStatus.installed:
+            continue
+        if sid == "greenbone":
+            targets = [ScopeTarget(type=ScopeEntryType.ip, value="10.0.0.1")]
+        else:
+            targets = [ScopeTarget(type=ScopeEntryType.path, value="local")]
+        ctx = ScanContext(project_id="p", scan_id="s", task_id="t", targets=targets)
+        pm = ProcessManager(max_concurrent=1, default_timeout_seconds=5.0)
+        with pytest.raises(ScannerNotInstalledError):
+            await adapter.execute(ctx, pm)
+
+
 @pytest.mark.asyncio
 async def test_later_phase_skeleton_still_not_implemented(registry):
-    greenbone = registry.get("greenbone")
+    # Remaining skeletons (testssl / tshark) stay NotImplemented — no fake findings.
+    testssl = registry.get("testssl")
     ctx = ScanContext(project_id="p", scan_id="s", task_id="t", targets=[])
     with pytest.raises(ScannerNotImplementedError) as exc:
-        greenbone.normalize_findings({}, ctx)
-    assert exc.value.phase == 7
+        testssl.normalize_findings({}, ctx)
+    assert exc.value.phase == 5
 
 
 @pytest.mark.asyncio
@@ -178,8 +207,11 @@ def test_active_adapters_flagged(registry):
     active = {a.scanner_id for a in registry.list() if a.is_active}
     # Phase-5 ZAP/Nuclei: baseline/controlled — Active-Gate only for ZAP deep/active mode.
     # Phase-6 Schemathesis: always Active-Gate (live API requests).
+    # Phase-7 Greenbone: always Active-Gate (network vuln scans).
     assert "zap" not in active
     assert "nuclei" not in active
     assert "greenbone" in active
     assert "schemathesis" in active
+    assert "windows_host_audit" not in active
+    assert "linux_host_audit" not in active
     assert "nmap" not in active

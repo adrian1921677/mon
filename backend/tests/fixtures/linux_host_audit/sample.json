@@ -1,0 +1,42 @@
+{
+  "scanner": "linux_host_audit",
+  "host": "wsl-lab",
+  "os": "Linux wsl-lab 5.15.0-x86_64",
+  "checks": [
+    {
+      "id": "perm.shadow",
+      "title": "Permissions /etc/shadow",
+      "status": "fail",
+      "severity": "high",
+      "detail": "group/other readable"
+    },
+    {
+      "id": "ssh.permit_root",
+      "title": "SSH PermitRootLogin",
+      "status": "fail",
+      "severity": "high",
+      "detail": "value=yes"
+    },
+    {
+      "id": "ssh.password_auth",
+      "title": "SSH PasswordAuthentication",
+      "status": "warn",
+      "severity": "medium",
+      "detail": "password auth enabled"
+    },
+    {
+      "id": "fw.ufw",
+      "title": "UFW firewall",
+      "status": "pass",
+      "severity": "info",
+      "detail": "active"
+    },
+    {
+      "id": "kernel.aslr",
+      "title": "Kernel ASLR",
+      "status": "pass",
+      "severity": "info",
+      "detail": "randomize_va_space=2"
+    }
+  ]
+}
