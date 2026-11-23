@@ -5,9 +5,11 @@ import {
   SETTING_ACTIVE_TESTS,
   type HealthResponse,
   type ProjectRead,
+  type ScanRead,
   type ScopeEntryRead,
   type ScopeEntryType,
   type ScopeValidateResponse,
+  type ToolLiveRead,
 } from "./api/client";
 import {
   getBackendInfo,
@@ -17,6 +19,7 @@ import {
 } from "./api/backend";
 
 type ConnectionState = "checking" | "online" | "offline";
+type ViewTab = "projects" | "tools";
 
 const SCOPE_TYPES: ScopeEntryType[] = [
   "ip",
@@ -27,13 +30,23 @@ const SCOPE_TYPES: ScopeEntryType[] = [
   "path",
 ];
 
+function statusTone(status: string): string {
+  if (status === "installed") return "var(--ok)";
+  if (status === "not_installed") return "var(--warn)";
+  return "var(--muted)";
+}
+
 export default function App() {
   const [backend, setBackend] = useState<BackendInfo | null>(null);
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [connection, setConnection] = useState<ConnectionState>("checking");
+  const [view, setView] = useState<ViewTab>("projects");
   const [projects, setProjects] = useState<ProjectRead[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [scopeEntries, setScopeEntries] = useState<ScopeEntryRead[]>([]);
+  const [tools, setTools] = useState<ToolLiveRead[]>([]);
+  const [scans, setScans] = useState<ScanRead[]>([]);
+  const [selectedScanner, setSelectedScanner] = useState("nmap");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [scopeType, setScopeType] = useState<ScopeEntryType>("ip");
@@ -52,6 +65,22 @@ export default function App() {
     async (projectId: string) => {
       const entries = await client.listScope(projectId);
       setScopeEntries(entries);
+    },
+    [client],
+  );
+
+  const refreshTools = useCallback(async () => {
+    const list = await client.listTools(false);
+    setTools(list);
+    if (list.length && !list.some((t) => t.scanner_id === selectedScanner)) {
+      setSelectedScanner(list[0].scanner_id);
+    }
+  }, [client, selectedScanner]);
+
+  const refreshScans = useCallback(
+    async (projectId: string) => {
+      const list = await client.listScans(projectId);
+      setScans(list);
     },
     [client],
   );
@@ -84,8 +113,10 @@ export default function App() {
       if (selectedId && !list.some((p) => p.id === selectedId)) {
         setSelectedId(null);
         setScopeEntries([]);
+        setScans([]);
       } else if (selectedId) {
         await refreshScope(selectedId);
+        await refreshScans(selectedId);
       }
       try {
         const settings = await client.listSettings();
@@ -94,12 +125,17 @@ export default function App() {
       } catch {
         /* settings optional */
       }
+      try {
+        await refreshTools();
+      } catch {
+        /* tools optional until backend Phase 3 */
+      }
     } catch (err) {
       setConnection("offline");
       setHealth(null);
       setError(err instanceof Error ? err.message : String(err));
     }
-  }, [client, refreshScope, selectedId]);
+  }, [client, refreshScope, refreshScans, refreshTools, selectedId]);
 
   useEffect(() => {
     void refresh();
@@ -136,6 +172,7 @@ export default function App() {
       if (selectedId === id) {
         setSelectedId(null);
         setScopeEntries([]);
+        setScans([]);
       }
       await refresh();
     } catch (err) {
@@ -151,6 +188,7 @@ export default function App() {
     setError(null);
     try {
       await refreshScope(id);
+      await refreshScans(id);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -234,6 +272,48 @@ export default function App() {
     }
   }
 
+  async function onRefreshToolsPersist() {
+    setBusy(true);
+    setError(null);
+    try {
+      await client.refreshTools();
+      await refreshTools();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onStartScanStub() {
+    if (!selectedId || !selectedScanner) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const scan = await client.createScan(selectedId, {
+        scanner_ids: [selectedScanner],
+        depth: "standard",
+      });
+      await refreshScans(selectedId);
+      const task = scan.tasks[0];
+      if (task?.status === "failed" && task.log_path) {
+        setError(`Scan-Stub: ${task.scanner_id} — ${task.log_path}`);
+      }
+    } catch (err) {
+      if (err instanceof ApiError && err.body && typeof err.body === "object") {
+        const detail = (err.body as { detail?: { message?: string } | string }).detail;
+        if (typeof detail === "string") setError(detail);
+        else if (detail && typeof detail === "object")
+          setError(detail.message || JSON.stringify(detail));
+        else setError(err.message);
+      } else {
+        setError(err instanceof Error ? err.message : String(err));
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const statusLabel =
     connection === "online"
       ? "Backend online"
@@ -249,6 +329,7 @@ export default function App() {
         : "var(--danger)";
 
   const selected = projects.find((p) => p.id === selectedId) ?? null;
+  const installedCount = tools.filter((t) => t.status === "installed").length;
 
   return (
     <div className="min-h-screen px-6 py-5 md:px-10">
@@ -261,8 +342,32 @@ export default function App() {
             Hck
           </h1>
           <p className="mt-1 max-w-xl text-sm text-[var(--muted)]">
-            Phase 2: Scope Engine (Backend-only) und Process Manager — keine Scanner-Adapter.
+            Phase 3: Scanner-Registry, Tool Manager, Scan-Pipeline-Stub — keine Fake-Findings.
           </p>
+          <div className="mt-3 flex gap-2">
+            <button
+              type="button"
+              onClick={() => setView("projects")}
+              className={`rounded px-3 py-1.5 text-xs font-medium ${
+                view === "projects"
+                  ? "bg-[var(--accent)] text-[var(--accent-ink)]"
+                  : "border border-[var(--line)] hover:bg-gray-50"
+              }`}
+            >
+              Projekte & Scope
+            </button>
+            <button
+              type="button"
+              onClick={() => setView("tools")}
+              className={`rounded px-3 py-1.5 text-xs font-medium ${
+                view === "tools"
+                  ? "bg-[var(--accent)] text-[var(--accent-ink)]"
+                  : "border border-[var(--line)] hover:bg-gray-50"
+              }`}
+            >
+              Tool Manager
+            </button>
+          </div>
         </div>
         <div className="rounded-md border border-[var(--line)] bg-[var(--panel)] px-4 py-3 shadow-sm">
           <div className="flex items-center gap-2 text-sm font-medium">
@@ -280,8 +385,10 @@ export default function App() {
             </dd>
             <dt>Version</dt>
             <dd>{health?.version ?? "—"}</dd>
-            <dt>DB</dt>
-            <dd>{health?.database ?? "—"}</dd>
+            <dt>Tools</dt>
+            <dd>
+              {installedCount}/{tools.length || "—"} installiert
+            </dd>
             <dt>Aktive Tests</dt>
             <dd>{activeTests ? "freigegeben" : "gesperrt"}</dd>
           </dl>
@@ -320,202 +427,335 @@ export default function App() {
         </div>
       ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
-        <section className="space-y-6">
-          <div className="rounded-md border border-[var(--line)] bg-[var(--panel)] p-5 shadow-sm">
-            <h2 className="text-sm font-semibold tracking-wide text-[var(--ink)] uppercase">
-              Neues Projekt
-            </h2>
-            <form className="mt-4 space-y-3" onSubmit={onCreate}>
-              <label className="block text-sm">
-                <span className="mb-1 block text-[var(--muted)]">Name</span>
-                <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  maxLength={255}
-                  className="w-full rounded border border-[var(--line)] px-3 py-2 outline-none focus:border-[var(--accent)]"
-                  placeholder="z. B. Lab-Netzwerk A"
-                />
-              </label>
-              <label className="block text-sm">
-                <span className="mb-1 block text-[var(--muted)]">Beschreibung</span>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={2}
-                  className="w-full resize-y rounded border border-[var(--line)] px-3 py-2 outline-none focus:border-[var(--accent)]"
-                  placeholder="Optional"
-                />
-              </label>
-              <button
-                type="submit"
-                disabled={busy || connection !== "online"}
-                className="rounded bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-ink)] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Anlegen
-              </button>
-            </form>
-          </div>
-
-          <div className="rounded-md border border-[var(--line)] bg-[var(--panel)] p-5 shadow-sm">
-            <div className="mb-3 flex items-baseline justify-between gap-3">
-              <h2 className="text-sm font-semibold tracking-wide text-[var(--ink)] uppercase">
-                Projekte
-              </h2>
-              <span className="text-xs text-[var(--muted)]">{projects.length}</span>
-            </div>
-            {projects.length === 0 ? (
-              <p className="text-sm text-[var(--muted)]">Noch keine Projekte.</p>
-            ) : (
-              <ul className="divide-y divide-[var(--line)]">
-                {projects.map((p) => (
-                  <li key={p.id} className="py-2.5 first:pt-0 last:pb-0">
-                    <button
-                      type="button"
-                      onClick={() => void onSelectProject(p.id)}
-                      className={`w-full rounded px-2 py-1.5 text-left text-sm ${
-                        selectedId === p.id
-                          ? "bg-teal-50 font-medium text-[var(--ink)]"
-                          : "hover:bg-gray-50"
-                      }`}
-                    >
-                      {p.name}
-                    </button>
-                    <div className="mt-1 flex justify-end">
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => void onDelete(p.id)}
-                        className="rounded border border-[var(--line)] px-2 py-1 text-[11px] text-[var(--danger)] hover:bg-red-50 disabled:opacity-50"
-                      >
-                        Löschen
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </section>
-
+      {view === "tools" ? (
         <section className="rounded-md border border-[var(--line)] bg-[var(--panel)] p-5 shadow-sm">
-          {!selected ? (
-            <p className="text-sm text-[var(--muted)]">
-              Wähle links ein Projekt, um Scope-Einträge zu verwalten (IP, CIDR, Domain, URL,
-              API-Spec, lokale Pfade). Validierung läuft ausschließlich im Backend.
-            </p>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold tracking-wide text-[var(--ink)] uppercase">
+                Tool Manager
+              </h2>
+              <p className="mt-1 text-sm text-[var(--muted)]">
+                Verfügbarkeit der Scanner-Adapter. Echo (Test) erscheint hier nicht. Volle CLI in
+                Phase 4–7.
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={busy || connection !== "online"}
+              onClick={() => void onRefreshToolsPersist()}
+              className="rounded bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-ink)] disabled:opacity-50"
+            >
+              Neu prüfen & speichern
+            </button>
+          </div>
+          {tools.length === 0 ? (
+            <p className="text-sm text-[var(--muted)]">Keine Tools geladen.</p>
           ) : (
-            <>
-              <div className="mb-4 border-b border-[var(--line)] pb-3">
-                <h2 className="text-sm font-semibold tracking-wide text-[var(--ink)] uppercase">
-                  Scope — {selected.name}
-                </h2>
-                <p className="mt-1 font-mono text-[11px] text-[var(--muted)]">{selected.id}</p>
-              </div>
-
-              <form className="mb-5 grid gap-3 md:grid-cols-[140px_1fr_auto_auto]" onSubmit={onAddScope}>
+            <ul className="divide-y divide-[var(--line)]">
+              {tools.map((t) => (
+                <li
+                  key={t.scanner_id}
+                  className="flex flex-wrap items-start justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                >
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium text-[var(--ink)]">{t.display_name}</span>
+                      <span className="font-mono text-[11px] text-[var(--muted)]">
+                        {t.scanner_id}
+                      </span>
+                      <span
+                        className="rounded px-1.5 py-0.5 text-[11px] font-medium"
+                        style={{ color: statusTone(t.status) }}
+                      >
+                        {t.status}
+                      </span>
+                      {t.is_active ? (
+                        <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[11px] text-amber-800">
+                          aktiv
+                        </span>
+                      ) : null}
+                      <span className="text-[11px] text-[var(--muted)]">
+                        Phase {t.integration_phase} · {t.preferred_runtime}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-sm text-[var(--muted)]">{t.description}</p>
+                    <p className="mt-1 font-mono text-[11px] text-[var(--muted)]">
+                      {t.message || "—"}
+                      {t.version ? ` · v${t.version}` : ""}
+                    </p>
+                  </div>
+                  <div className="text-xs text-[var(--muted)]">
+                    {(t.capabilities || []).join(", ")}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      ) : (
+        <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
+          <section className="space-y-6">
+            <div className="rounded-md border border-[var(--line)] bg-[var(--panel)] p-5 shadow-sm">
+              <h2 className="text-sm font-semibold tracking-wide text-[var(--ink)] uppercase">
+                Neues Projekt
+              </h2>
+              <form className="mt-4 space-y-3" onSubmit={onCreate}>
                 <label className="block text-sm">
-                  <span className="mb-1 block text-[var(--muted)]">Typ</span>
-                  <select
-                    value={scopeType}
-                    onChange={(e) => setScopeType(e.target.value as ScopeEntryType)}
-                    className="w-full rounded border border-[var(--line)] px-2 py-2"
-                  >
-                    {SCOPE_TYPES.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="block text-sm md:col-span-1">
-                  <span className="mb-1 block text-[var(--muted)]">Wert</span>
+                  <span className="mb-1 block text-[var(--muted)]">Name</span>
                   <input
-                    value={scopeValue}
-                    onChange={(e) => setScopeValue(e.target.value)}
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
                     required
-                    className="w-full rounded border border-[var(--line)] px-3 py-2 font-mono text-sm outline-none focus:border-[var(--accent)]"
-                    placeholder="z. B. 10.0.0.0/24 oder https://app.example.com"
+                    maxLength={255}
+                    className="w-full rounded border border-[var(--line)] px-3 py-2 outline-none focus:border-[var(--accent)]"
+                    placeholder="z. B. Lab-Netzwerk A"
                   />
                 </label>
-                <div className="flex items-end">
-                  <button
-                    type="button"
-                    disabled={busy || !scopeValue.trim()}
-                    onClick={() => void onValidateScope()}
-                    className="w-full rounded border border-[var(--line)] px-3 py-2 text-sm hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    Validieren
-                  </button>
-                </div>
-                <div className="flex items-end">
-                  <button
-                    type="submit"
-                    disabled={busy || connection !== "online"}
-                    className="w-full rounded bg-[var(--accent)] px-3 py-2 text-sm font-medium text-[var(--accent-ink)] disabled:opacity-50"
-                  >
-                    Hinzufügen
-                  </button>
-                </div>
-              </form>
-
-              {validateResult ? (
-                <div
-                  className={`mb-4 rounded border px-3 py-2 text-sm ${
-                    validateResult.allowed
-                      ? "border-green-200 bg-green-50 text-[var(--ok)]"
-                      : "border-red-200 bg-red-50 text-[var(--danger)]"
-                  }`}
+                <label className="block text-sm">
+                  <span className="mb-1 block text-[var(--muted)]">Beschreibung</span>
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    rows={2}
+                    className="w-full resize-y rounded border border-[var(--line)] px-3 py-2 outline-none focus:border-[var(--accent)]"
+                    placeholder="Optional"
+                  />
+                </label>
+                <button
+                  type="submit"
+                  disabled={busy || connection !== "online"}
+                  className="rounded bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-ink)] disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <div className="font-medium">
-                    {validateResult.allowed ? "Erlaubt" : "Abgelehnt"} — {validateResult.reason}
-                  </div>
-                  <div className="mt-0.5 text-[var(--muted)]">{validateResult.message}</div>
-                  {validateResult.resolved_ips?.length ? (
-                    <div className="mt-1 font-mono text-xs text-[var(--muted)]">
-                      IPs: {validateResult.resolved_ips.join(", ")}
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
+                  Anlegen
+                </button>
+              </form>
+            </div>
 
-              {scopeEntries.length === 0 ? (
-                <p className="text-sm text-[var(--muted)]">Noch keine Scope-Einträge.</p>
+            <div className="rounded-md border border-[var(--line)] bg-[var(--panel)] p-5 shadow-sm">
+              <div className="mb-3 flex items-baseline justify-between gap-3">
+                <h2 className="text-sm font-semibold tracking-wide text-[var(--ink)] uppercase">
+                  Projekte
+                </h2>
+                <span className="text-xs text-[var(--muted)]">{projects.length}</span>
+              </div>
+              {projects.length === 0 ? (
+                <p className="text-sm text-[var(--muted)]">Noch keine Projekte.</p>
               ) : (
                 <ul className="divide-y divide-[var(--line)]">
-                  {scopeEntries.map((e) => (
-                    <li
-                      key={e.id}
-                      className="flex flex-wrap items-start justify-between gap-3 py-3 first:pt-0 last:pb-0"
-                    >
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[11px]">
-                            {e.type}
-                          </span>
-                          <span className="text-xs text-[var(--muted)]">{e.status}</span>
-                        </div>
-                        <div className="mt-1 font-mono text-sm text-[var(--ink)] break-all">
-                          {e.value}
-                        </div>
-                      </div>
+                  {projects.map((p) => (
+                    <li key={p.id} className="py-2.5 first:pt-0 last:pb-0">
                       <button
                         type="button"
-                        disabled={busy}
-                        onClick={() => void onDeleteScope(e.id)}
-                        className="rounded border border-[var(--line)] px-3 py-1.5 text-xs text-[var(--danger)] hover:bg-red-50 disabled:opacity-50"
+                        onClick={() => void onSelectProject(p.id)}
+                        className={`w-full rounded px-2 py-1.5 text-left text-sm ${
+                          selectedId === p.id
+                            ? "bg-teal-50 font-medium text-[var(--ink)]"
+                            : "hover:bg-gray-50"
+                        }`}
                       >
-                        Entfernen
+                        {p.name}
                       </button>
+                      <div className="mt-1 flex justify-end">
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void onDelete(p.id)}
+                          className="rounded border border-[var(--line)] px-2 py-1 text-[11px] text-[var(--danger)] hover:bg-red-50 disabled:opacity-50"
+                        >
+                          Löschen
+                        </button>
+                      </div>
                     </li>
                   ))}
                 </ul>
               )}
-            </>
-          )}
-        </section>
-      </div>
+            </div>
+          </section>
+
+          <section className="space-y-6">
+            <div className="rounded-md border border-[var(--line)] bg-[var(--panel)] p-5 shadow-sm">
+              {!selected ? (
+                <p className="text-sm text-[var(--muted)]">
+                  Wähle links ein Projekt, um Scope-Einträge zu verwalten und einen Scan-Stub zu
+                  starten (ohne Fake-Findings).
+                </p>
+              ) : (
+                <>
+                  <div className="mb-4 border-b border-[var(--line)] pb-3">
+                    <h2 className="text-sm font-semibold tracking-wide text-[var(--ink)] uppercase">
+                      Scope — {selected.name}
+                    </h2>
+                    <p className="mt-1 font-mono text-[11px] text-[var(--muted)]">{selected.id}</p>
+                  </div>
+
+                  <form
+                    className="mb-5 grid gap-3 md:grid-cols-[140px_1fr_auto_auto]"
+                    onSubmit={onAddScope}
+                  >
+                    <label className="block text-sm">
+                      <span className="mb-1 block text-[var(--muted)]">Typ</span>
+                      <select
+                        value={scopeType}
+                        onChange={(e) => setScopeType(e.target.value as ScopeEntryType)}
+                        className="w-full rounded border border-[var(--line)] px-2 py-2"
+                      >
+                        {SCOPE_TYPES.map((t) => (
+                          <option key={t} value={t}>
+                            {t}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="block text-sm md:col-span-1">
+                      <span className="mb-1 block text-[var(--muted)]">Wert</span>
+                      <input
+                        value={scopeValue}
+                        onChange={(e) => setScopeValue(e.target.value)}
+                        required
+                        className="w-full rounded border border-[var(--line)] px-3 py-2 font-mono text-sm outline-none focus:border-[var(--accent)]"
+                        placeholder="z. B. 10.0.0.0/24 oder https://app.example.com"
+                      />
+                    </label>
+                    <div className="flex items-end">
+                      <button
+                        type="button"
+                        disabled={busy || !scopeValue.trim()}
+                        onClick={() => void onValidateScope()}
+                        className="w-full rounded border border-[var(--line)] px-3 py-2 text-sm hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        Validieren
+                      </button>
+                    </div>
+                    <div className="flex items-end">
+                      <button
+                        type="submit"
+                        disabled={busy || connection !== "online"}
+                        className="w-full rounded bg-[var(--accent)] px-3 py-2 text-sm font-medium text-[var(--accent-ink)] disabled:opacity-50"
+                      >
+                        Hinzufügen
+                      </button>
+                    </div>
+                  </form>
+
+                  {validateResult ? (
+                    <div
+                      className={`mb-4 rounded border px-3 py-2 text-sm ${
+                        validateResult.allowed
+                          ? "border-green-200 bg-green-50 text-[var(--ok)]"
+                          : "border-red-200 bg-red-50 text-[var(--danger)]"
+                      }`}
+                    >
+                      <div className="font-medium">
+                        {validateResult.allowed ? "Erlaubt" : "Abgelehnt"} —{" "}
+                        {validateResult.reason}
+                      </div>
+                      <div className="mt-0.5 text-[var(--muted)]">{validateResult.message}</div>
+                    </div>
+                  ) : null}
+
+                  {scopeEntries.length === 0 ? (
+                    <p className="text-sm text-[var(--muted)]">Noch keine Scope-Einträge.</p>
+                  ) : (
+                    <ul className="divide-y divide-[var(--line)]">
+                      {scopeEntries.map((e) => (
+                        <li
+                          key={e.id}
+                          className="flex flex-wrap items-start justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                        >
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-[11px]">
+                                {e.type}
+                              </span>
+                              <span className="text-xs text-[var(--muted)]">{e.status}</span>
+                            </div>
+                            <div className="mt-1 font-mono text-sm text-[var(--ink)] break-all">
+                              {e.value}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => void onDeleteScope(e.id)}
+                            className="rounded border border-[var(--line)] px-3 py-1.5 text-xs text-[var(--danger)] hover:bg-red-50 disabled:opacity-50"
+                          >
+                            Entfernen
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
+              )}
+            </div>
+
+            {selected ? (
+              <div className="rounded-md border border-[var(--line)] bg-[var(--panel)] p-5 shadow-sm">
+                <h2 className="text-sm font-semibold tracking-wide text-[var(--ink)] uppercase">
+                  Scan-Stub
+                </h2>
+                <p className="mt-1 text-sm text-[var(--muted)]">
+                  Startet nur die Pipeline (Scope + Active-Gate + Install-Check). Keine simulierten
+                  Sicherheitsfunde — fehlende Tools enden als failed.
+                </p>
+                <div className="mt-4 flex flex-wrap items-end gap-3">
+                  <label className="block text-sm">
+                    <span className="mb-1 block text-[var(--muted)]">Scanner</span>
+                    <select
+                      value={selectedScanner}
+                      onChange={(e) => setSelectedScanner(e.target.value)}
+                      className="min-w-[200px] rounded border border-[var(--line)] px-2 py-2"
+                    >
+                      {tools.map((t) => (
+                        <option key={t.scanner_id} value={t.scanner_id}>
+                          {t.display_name} ({t.status})
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    disabled={busy || connection !== "online" || !tools.length}
+                    onClick={() => void onStartScanStub()}
+                    className="rounded bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-ink)] disabled:opacity-50"
+                  >
+                    Scan-Stub starten
+                  </button>
+                </div>
+                {scans.length === 0 ? (
+                  <p className="mt-4 text-sm text-[var(--muted)]">Noch keine Scans.</p>
+                ) : (
+                  <ul className="mt-4 divide-y divide-[var(--line)]">
+                    {scans.slice(0, 5).map((s) => (
+                      <li key={s.id} className="py-2 text-sm">
+                        <div className="flex flex-wrap gap-2">
+                          <span className="font-mono text-[11px] text-[var(--muted)]">
+                            {s.id.slice(0, 8)}
+                          </span>
+                          <span>{s.status}</span>
+                          <span className="text-[var(--muted)]">
+                            {(s.tasks || []).map((t) => t.scanner_id).join(", ")}
+                          </span>
+                        </div>
+                        {(s.tasks || []).map((t) =>
+                          t.log_path ? (
+                            <div
+                              key={t.id}
+                              className="mt-1 font-mono text-[11px] text-[var(--muted)] break-all"
+                            >
+                              {t.scanner_id}: {t.log_path}
+                            </div>
+                          ) : null,
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ) : null}
+          </section>
+        </div>
+      )}
     </div>
   );
 }

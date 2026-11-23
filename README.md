@@ -1,4 +1,4 @@
-# Hck — Lokale Pentesting-Plattform (Phase 2)
+# Hck — Lokale Pentesting-Plattform (Phase 3)
 
 Monorepo für die **lokale** Windows-11-Sicherheitsplattform. Scan-Engine und API laufen nur auf `127.0.0.1`.
 
@@ -10,6 +10,8 @@ Monorepo für die **lokale** Windows-11-Sicherheitsplattform. Scan-Engine und AP
 backend/           FastAPI + SQLite (WAL) + Alembic
   app/scope/       Scope Engine (Backend-only)
   app/process/     Process Manager (kein shell=True)
+  app/scanners/    Registry + Adapter-Interface + Skelette
+  app/jobs/        Scan-Pipeline-Stub
 apps/desktop/      Tauri 2 + Vite + React + TypeScript
 ```
 
@@ -63,15 +65,15 @@ Nur UI (Backend separat):
 cd apps/desktop && npm run dev
 ```
 
-## Phase-2-Scope
+## Phase-3-Scope
 
 Enthalten:
 
-- Scope Engine inkl. DNS/SSRF/Rebinding/Redirect/Metadata-Block
-- Scope-CRUD + Validate-API an `scope_entries`
-- Active-Test-Freigabe (`security.active_tests_enabled`)
-- Process Manager (Timeout, Cancel, Concurrency, sanitized logs)
-- Crash-Recovery → `interrupted`
-- Desktop: Scope verwalten/validieren pro Projekt
+- Scanner-Registry + gemeinsames Adapter-Interface
+- Skelette für alle geplanten Tools (saubere not-installed / NotImplemented-Pfade)
+- Echo-Adapter nur für Pipeline-Tests (nie produktive UI-Findings)
+- Tool Manager API auf `tool_installations`
+- Scan-Job-Pipeline-Stub (ScopeEngine + ProcessManager + Active-Gate)
+- Desktop: Tool-Manager-Ansicht + optionaler Scan-Stub ohne Fake-Findings
 
-**Nicht** enthalten: Scanner-Registry/Adapter (Phase 3), echte Tool-Scans (Phase 4+).
+**Nicht** enthalten: volle CLI für Nmap/Semgrep/Trivy/Gitleaks (Phase 4).

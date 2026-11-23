@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Hck Local Platform",
-    "version": "0.2.0"
+    "version": "0.3.0"
   },
   "paths": {
     "/health": {
@@ -311,6 +311,58 @@
         }
       }
     },
+    "/api/v1/projects/{project_id}/scope/validate": {
+      "post": {
+        "tags": [
+          "scope"
+        ],
+        "summary": "Validate Scope",
+        "operationId": "validate_scope_api_v1_projects__project_id__scope_validate_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScopeValidateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScopeValidateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/projects/{project_id}/scope/{entry_id}": {
       "get": {
         "tags": [
@@ -463,13 +515,230 @@
         }
       }
     },
-    "/api/v1/projects/{project_id}/scope/validate": {
+    "/api/v1/tools": {
+      "get": {
+        "tags": [
+          "tools"
+        ],
+        "summary": "List Tools",
+        "operationId": "list_tools_api_v1_tools_get",
+        "parameters": [
+          {
+            "name": "include_test_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Test Only"
+            }
+          },
+          {
+            "name": "persist",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Upsert probe results into tool_installations",
+              "default": false,
+              "title": "Persist"
+            },
+            "description": "Upsert probe results into tool_installations"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ToolLiveRead"
+                  },
+                  "title": "Response List Tools Api V1 Tools Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tools/refresh": {
       "post": {
         "tags": [
-          "scope"
+          "tools"
         ],
-        "summary": "Validate Scope",
-        "operationId": "validate_scope_api_v1_projects__project_id__scope_validate_post",
+        "summary": "Refresh Tools",
+        "operationId": "refresh_tools_api_v1_tools_refresh_post",
+        "parameters": [
+          {
+            "name": "include_test_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Test Only"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ToolInstallationRead"
+                  },
+                  "title": "Response Refresh Tools Api V1 Tools Refresh Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tools/installations": {
+      "get": {
+        "tags": [
+          "tools"
+        ],
+        "summary": "List Installations",
+        "operationId": "list_installations_api_v1_tools_installations_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ToolInstallationRead"
+                  },
+                  "type": "array",
+                  "title": "Response List Installations Api V1 Tools Installations Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tools/{scanner_id}": {
+      "get": {
+        "tags": [
+          "tools"
+        ],
+        "summary": "Get Tool",
+        "operationId": "get_tool_api_v1_tools__scanner_id__get",
+        "parameters": [
+          {
+            "name": "scanner_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Scanner Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolLiveRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/scans": {
+      "get": {
+        "tags": [
+          "scans"
+        ],
+        "summary": "List Scans",
+        "operationId": "list_scans_api_v1_projects__project_id__scans_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ScanRead"
+                  },
+                  "title": "Response List Scans Api V1 Projects  Project Id  Scans Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "scans"
+        ],
+        "summary": "Create Scan",
+        "operationId": "create_scan_api_v1_projects__project_id__scans_post",
         "parameters": [
           {
             "name": "project_id",
@@ -486,18 +755,115 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ScopeValidateRequest"
+                "$ref": "#/components/schemas/ScanCreate"
               }
             }
           }
         },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/scans/{scan_id}": {
+      "get": {
+        "tags": [
+          "scans"
+        ],
+        "summary": "Get Scan",
+        "operationId": "get_scan_api_v1_projects__project_id__scans__scan_id__get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "scan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Scan Id"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ScopeValidateResponse"
+                  "$ref": "#/components/schemas/ScanRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scans/{scan_id}/tasks": {
+      "get": {
+        "tags": [
+          "scans"
+        ],
+        "summary": "List Scan Tasks",
+        "operationId": "list_scan_tasks_api_v1_scans__scan_id__tasks_get",
+        "parameters": [
+          {
+            "name": "scan_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Scan Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ScanTaskRead"
+                  },
+                  "title": "Response List Scan Tasks Api V1 Scans  Scan Id  Tasks Get"
                 }
               }
             }
@@ -886,6 +1252,198 @@
         "type": "object",
         "title": "ProjectUpdate"
       },
+      "ScanCreate": {
+        "properties": {
+          "scanner_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Scanner Ids"
+          },
+          "depth": {
+            "type": "string",
+            "enum": [
+              "quick",
+              "standard",
+              "deep"
+            ],
+            "title": "Depth",
+            "default": "standard"
+          },
+          "allow_test_adapters": {
+            "type": "boolean",
+            "title": "Allow Test Adapters",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "scanner_ids"
+        ],
+        "title": "ScanCreate"
+      },
+      "ScanRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "profile_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "scope_snapshot_json": {
+            "title": "Scope Snapshot Json"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/ScanTaskRead"
+            },
+            "type": "array",
+            "title": "Tasks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "profile_id",
+          "status",
+          "started_at",
+          "finished_at",
+          "scope_snapshot_json",
+          "created_at"
+        ],
+        "title": "ScanRead"
+      },
+      "ScanTaskRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "scan_id": {
+            "type": "string",
+            "title": "Scan Id"
+          },
+          "scanner_id": {
+            "type": "string",
+            "title": "Scanner Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "pid": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pid"
+          },
+          "handle_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Handle Ref"
+          },
+          "exit_code": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exit Code"
+          },
+          "log_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Log Path"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "scan_id",
+          "scanner_id",
+          "status",
+          "pid",
+          "handle_ref",
+          "exit_code",
+          "log_path",
+          "created_at"
+        ],
+        "title": "ScanTaskRead"
+      },
       "ScopeEntryCreate": {
         "properties": {
           "type": {
@@ -1157,6 +1715,171 @@
           "value_json"
         ],
         "title": "SettingUpsert"
+      },
+      "ToolInstallationRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "scanner_id": {
+            "type": "string",
+            "title": "Scanner Id"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "path_or_runtime": {
+            "type": "string",
+            "title": "Path Or Runtime"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "meta_json": {
+            "title": "Meta Json"
+          },
+          "checked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checked At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "scanner_id",
+          "version",
+          "path_or_runtime",
+          "status",
+          "meta_json",
+          "checked_at"
+        ],
+        "title": "ToolInstallationRead"
+      },
+      "ToolLiveRead": {
+        "properties": {
+          "scanner_id": {
+            "type": "string",
+            "title": "Scanner Id"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          },
+          "capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Capabilities"
+          },
+          "preferred_runtime": {
+            "type": "string",
+            "title": "Preferred Runtime"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "default": false
+          },
+          "is_test_only": {
+            "type": "boolean",
+            "title": "Is Test Only",
+            "default": false
+          },
+          "integration_phase": {
+            "type": "integer",
+            "title": "Integration Phase",
+            "default": 4
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "path_or_runtime": {
+            "type": "string",
+            "title": "Path Or Runtime"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": ""
+          },
+          "binary_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Binary Path"
+          },
+          "checked_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checked At"
+          },
+          "persisted": {
+            "type": "boolean",
+            "title": "Persisted",
+            "default": false
+          },
+          "meta": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Meta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "scanner_id",
+          "display_name",
+          "preferred_runtime",
+          "status",
+          "path_or_runtime"
+        ],
+        "title": "ToolLiveRead"
       },
       "ValidationError": {
         "properties": {

@@ -9,11 +9,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__
-from app.api import audit, health, projects, scope
+from app.api import audit, health, projects, scans, scope, tools
 from app.api import settings as settings_api
 from app.core.config import get_settings
 from app.db.session import SessionLocal, init_db
 from app.process.recovery import mark_interrupted_tasks
+from app.scanners.registry import get_registry
 
 
 @asynccontextmanager
@@ -21,6 +22,8 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     cfg = get_settings()
     cfg.data_dir.mkdir(parents=True, exist_ok=True)
     init_db(cfg)
+    # Ensure scanner registry is loaded at startup.
+    get_registry()
     # Crash recovery: orphaned running/pending scans → interrupted.
     if SessionLocal is not None:
         db = SessionLocal()
@@ -58,6 +61,8 @@ def create_app() -> FastAPI:
     application.include_router(health.router)
     application.include_router(projects.router, prefix="/api/v1")
     application.include_router(scope.router, prefix="/api/v1")
+    application.include_router(tools.router, prefix="/api/v1")
+    application.include_router(scans.router, prefix="/api/v1")
     application.include_router(settings_api.router, prefix="/api/v1")
     application.include_router(audit.router, prefix="/api/v1")
     return application
