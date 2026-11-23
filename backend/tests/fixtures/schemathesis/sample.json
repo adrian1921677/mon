@@ -1,0 +1,57 @@
+{
+  "exit_code": 1,
+  "stop_reason": "completed",
+  "complete": true,
+  "schemathesis_version": "4.0.0",
+  "operations": {
+    "total": 4,
+    "selected": 4,
+    "tested": 4,
+    "errored": 0,
+    "skipped": 0,
+    "skip_reasons": []
+  },
+  "test_cases": {
+    "generated": 120,
+    "with_failures": 3,
+    "unique_failures": 3,
+    "without_checks": 0,
+    "errored": 0
+  },
+  "phases": {
+    "examples": {"status": "success", "skip_reason": null},
+    "coverage": {"status": "failure", "skip_reason": null},
+    "fuzzing": {"status": "skip", "skip_reason": "not enabled"},
+    "stateful": {"status": "skip", "skip_reason": "not enabled"}
+  },
+  "failures": [
+    {
+      "type": "ServerError",
+      "title": "Server error",
+      "severity": "critical",
+      "count": 2,
+      "operations": ["GET /items/{itemId}", "POST /orders"]
+    },
+    {
+      "type": "UndefinedStatusCode",
+      "title": "Undocumented status code",
+      "severity": "medium",
+      "count": 3,
+      "operations": ["GET /items/{itemId}", "POST /items", "POST /orders"]
+    },
+    {
+      "type": "ResponseSchemaConformance",
+      "title": "Response violates schema",
+      "severity": "high",
+      "count": 1,
+      "operations": ["GET /health"]
+    }
+  ],
+  "errors": [
+    {
+      "type": "SchemaError",
+      "message": "Could not resolve $ref '#/components/schemas/Missing'"
+    }
+  ],
+  "warnings": []
+}

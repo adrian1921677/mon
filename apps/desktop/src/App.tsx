@@ -344,7 +344,7 @@ export default function App() {
             Hck
           </h1>
           <p className="mt-1 max-w-xl text-sm text-[var(--muted)]">
-            Phase 5: ZAP & Nuclei (+ Phase 4) — echte CLI-Scans, Findings in DB.
+            Phase 6: Schemathesis (+ Phase 4–5) — echte CLI-Scans, Findings in DB.
           </p>
           <div className="mt-3 flex gap-2">
             <button
@@ -697,9 +697,9 @@ export default function App() {
                   Scan starten
                 </h2>
                 <p className="mt-1 text-sm text-[var(--muted)]">
-                  Scope + Active-Gate + ProcessManager. Installierte Tools (inkl. ZAP Baseline /
-                  Nuclei) schreiben echte Findings — fehlende Binaries enden als failed, ohne
-                  Fake-Results. ZAP deep/active braucht Active-Gate.
+                  Scope + Active-Gate + ProcessManager. Installierte Tools (inkl. Schemathesis,
+                  ZAP, Nuclei) schreiben echte Findings — fehlende Binaries enden als failed,
+                  ohne Fake-Results. Schemathesis und ZAP deep/active brauchen Active-Gate.
                 </p>
                 <div className="mt-4 flex flex-wrap items-end gap-3">
                   <label className="block text-sm">
