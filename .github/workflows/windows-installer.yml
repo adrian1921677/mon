@@ -115,6 +115,26 @@ jobs:
         working-directory: apps/desktop
         run: npm run typecheck
 
+      - name: Verify Tauri backend resource paths
+        shell: bash
+        run: |
+          # Paths in tauri.conf.json are relative to apps/desktop/src-tauri
+          base="apps/desktop/src-tauri"
+          for rel in \
+            "../../../backend/app/main.py" \
+            "../../../backend/alembic/env.py" \
+            "../../../backend/pyproject.toml" \
+            "../../../backend/alembic.ini" \
+            "../../../backend/README.md"
+          do
+            path="$base/$rel"
+            if [[ ! -e "$path" ]]; then
+              echo "::error::Missing resource: $path (resolved from src-tauri)"
+              exit 1
+            fi
+            echo "OK $path -> $(cd "$(dirname "$path")" && pwd)/$(basename "$path")"
+          done
+
       - name: Build installers (no release)
         if: steps.meta.outputs.create_release != 'true'
         uses: tauri-apps/tauri-action@v0

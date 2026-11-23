@@ -62,8 +62,8 @@ fn resolve_backend_dir(app: &AppHandle) -> Result<PathBuf, String> {
         .map_err(|e| format!("resource dir: {e}"))?;
 
     let candidates = [
-        // Dev: monorepo layout next to apps/desktop/src-tauri
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../backend"),
+        // Dev: monorepo root (src-tauri → desktop → apps → repo)
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../backend"),
         // Packaged: bundled under $RESOURCE/backend
         resource.join("backend"),
         // Fallback: cwd-relative (scripts / portable layout)
