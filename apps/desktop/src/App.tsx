@@ -285,7 +285,7 @@ export default function App() {
     }
   }
 
-  async function onStartScanStub() {
+  async function onStartScan() {
     if (!selectedId || !selectedScanner) return;
     setBusy(true);
     setError(null);
@@ -297,7 +297,7 @@ export default function App() {
       await refreshScans(selectedId);
       const task = scan.tasks[0];
       if (task?.status === "failed" && task.log_path) {
-        setError(`Scan-Stub: ${task.scanner_id} — ${task.log_path}`);
+        setError(`Scan: ${task.scanner_id} — ${task.log_path}`);
       }
     } catch (err) {
       if (err instanceof ApiError && err.body && typeof err.body === "object") {
@@ -342,7 +342,7 @@ export default function App() {
             Hck
           </h1>
           <p className="mt-1 max-w-xl text-sm text-[var(--muted)]">
-            Phase 3: Scanner-Registry, Tool Manager, Scan-Pipeline-Stub — keine Fake-Findings.
+            Phase 4: Nmap, Semgrep, Trivy, Gitleaks — echte CLI-Scans, Findings in DB.
           </p>
           <div className="mt-3 flex gap-2">
             <button
@@ -435,8 +435,8 @@ export default function App() {
                 Tool Manager
               </h2>
               <p className="mt-1 text-sm text-[var(--muted)]">
-                Verfügbarkeit der Scanner-Adapter. Echo (Test) erscheint hier nicht. Volle CLI in
-                Phase 4–7.
+                Verfügbarkeit der Scanner-Adapter. Echo (Test) erscheint hier nicht. Phase-4-Tools
+                (Nmap/Semgrep/Trivy/Gitleaks) laufen lokal, wenn installiert.
               </p>
             </div>
             <button
@@ -576,8 +576,8 @@ export default function App() {
             <div className="rounded-md border border-[var(--line)] bg-[var(--panel)] p-5 shadow-sm">
               {!selected ? (
                 <p className="text-sm text-[var(--muted)]">
-                  Wähle links ein Projekt, um Scope-Einträge zu verwalten und einen Scan-Stub zu
-                  starten (ohne Fake-Findings).
+                  Wähle links ein Projekt, um Scope zu verwalten und Scans zu starten (echte Tools,
+                  keine Fake-Findings).
                 </p>
               ) : (
                 <>
@@ -692,11 +692,11 @@ export default function App() {
             {selected ? (
               <div className="rounded-md border border-[var(--line)] bg-[var(--panel)] p-5 shadow-sm">
                 <h2 className="text-sm font-semibold tracking-wide text-[var(--ink)] uppercase">
-                  Scan-Stub
+                  Scan starten
                 </h2>
                 <p className="mt-1 text-sm text-[var(--muted)]">
-                  Startet nur die Pipeline (Scope + Active-Gate + Install-Check). Keine simulierten
-                  Sicherheitsfunde — fehlende Tools enden als failed.
+                  Scope + Active-Gate + ProcessManager. Phase-4-Tools (Nmap/Semgrep/Trivy/Gitleaks)
+                  schreiben echte Findings — fehlende Binaries enden als failed, ohne Fake-Results.
                 </p>
                 <div className="mt-4 flex flex-wrap items-end gap-3">
                   <label className="block text-sm">
@@ -716,10 +716,10 @@ export default function App() {
                   <button
                     type="button"
                     disabled={busy || connection !== "online" || !tools.length}
-                    onClick={() => void onStartScanStub()}
+                    onClick={() => void onStartScan()}
                     className="rounded bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-ink)] disabled:opacity-50"
                   >
-                    Scan-Stub starten
+                    Scan starten
                   </button>
                 </div>
                 {scans.length === 0 ? (

@@ -1,4 +1,4 @@
-# Hck Backend (Phase 3)
+# Hck Backend (Phase 4)
 
 Lokales FastAPI-Backend, bindet ausschließlich `127.0.0.1`.
 
@@ -6,6 +6,7 @@ Lokales FastAPI-Backend, bindet ausschließlich `127.0.0.1`.
 
 - Python 3.11+
 - Windows 11: native oder **WSL2** empfohlen
+- Optional Phase-4-Binaries: `nmap`, `semgrep`, `trivy`, `gitleaks`
 - Optional: [uv](https://github.com/astral-sh/uv)
 
 ## Setup
@@ -21,25 +22,15 @@ python -m venv .venv
 source .venv/bin/activate
 
 pip install -e ".[dev]"
-# oder: uv sync --extra dev
 ```
 
 ## Datenbank
 
 ```bash
-# Migrationen
 alembic upgrade head
 ```
 
-SQLite-Datei standardmäßig unter `~/.hck/hck.db` (WAL + Foreign Keys).
-
-Override:
-
-```bash
-export HCK_DATA_DIR=/path/to/data
-# oder
-export HCK_DATABASE_URL=sqlite:///./dev.db
-```
+SQLite unter `~/.hck/hck.db` (WAL + Foreign Keys). Override: `HCK_DATA_DIR` / `HCK_DATABASE_URL`.
 
 ## Start
 
@@ -48,8 +39,6 @@ python -m app.main
 # oder
 uvicorn app.main:app --host 127.0.0.1 --port 8765
 ```
-
-Beim Start: Scanner-Registry laden; laufende/pending Scans/Tasks → Status `interrupted`.
 
 - Health: `GET http://127.0.0.1:8765/health`
 - OpenAPI: `http://127.0.0.1:8765/docs`
@@ -60,29 +49,23 @@ Beim Start: Scanner-Registry laden; laufende/pending Scans/Tasks → Status `int
 pytest
 ```
 
-## API
+Parser-/Normalize-Tests nutzen Fixtures unter `tests/fixtures/` (kein Netzwerk-Scan in CI).
+
+## API (Auszug)
 
 | Methode | Pfad | Beschreibung |
 | --- | --- | --- |
-| GET | `/health` | Health + DB-Check |
-| GET/POST | `/api/v1/projects` | Projekte listen / anlegen |
-| GET/PATCH/DELETE | `/api/v1/projects/{id}` | Projekt lesen / ändern / löschen |
-| GET/POST | `/api/v1/projects/{id}/scope` | Scope-Einträge listen / anlegen |
-| GET/PATCH/DELETE | `/api/v1/projects/{id}/scope/{entry_id}` | Scope lesen / ändern / löschen |
-| POST | `/api/v1/projects/{id}/scope/validate` | Dry-Run (entry/target/redirect/ssrf/active_gate) |
-| GET | `/api/v1/tools` | Live-Probe aller produktiven Scanner |
-| POST | `/api/v1/tools/refresh` | Probe + Persistenz in `tool_installations` |
-| GET | `/api/v1/tools/installations` | Persistierte Installationen |
-| GET | `/api/v1/tools/{scanner_id}` | Einzelnes Tool |
-| GET/POST | `/api/v1/projects/{id}/scans` | Scans listen / Pipeline-Stub starten |
-| GET | `/api/v1/projects/{id}/scans/{scan_id}` | Scan inkl. Tasks |
-| GET/PUT | `/api/v1/settings`, `/api/v1/settings/{key}` | Settings (z. B. `security.active_tests_enabled`) |
-| GET | `/api/v1/audit-events` | Audit-Events |
+| GET | `/api/v1/tools` | Live-Probe produktiver Scanner |
+| POST | `/api/v1/tools/refresh` | Probe + `tool_installations` |
+| GET/POST | `/api/v1/projects/{id}/scans` | Scans listen / starten |
+| GET/PUT | `/api/v1/settings` | u. a. `security.active_tests_enabled` |
 
-## Phase-3-Module
+## Phase 4
 
-- `app/scanners/` — Registry, Adapter-Interface, Skelette (Nmap, Greenbone, TShark, ZAP, Nuclei, testssl, Semgrep, Trivy, Gitleaks, Schemathesis, Host Audits), Echo nur für Pipeline-Tests
-- `app/jobs/pipeline.py` — Scan-Stub mit ScopeEngine + ProcessManager + Active-Gate
-- `app/services/tool_manager.py` — `tool_installations` listen/prüfen
+- Volle CLI: **Nmap**, **Semgrep**, **Trivy**, **Gitleaks** (`app/scanners/`)
+- Kurz-Doku: `app/scanners/docs/*.md`
+- Findings → `findings` + `finding_occurrences` + `evidence` (Fingerprint-Dedup)
+- Pipeline: ScopeEngine + ProcessManager + Active-Gate
+- Fehlendes Binary → klarer Fehler, **keine** Fake-Findings
 
-**Nicht** in Phase 3: volle CLI-Integration (Phase 4: Nmap/Semgrep/Trivy/Gitleaks). Keine Fake-Findings.
+**Phase 5:** OWASP ZAP, Nuclei

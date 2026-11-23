@@ -1,6 +1,6 @@
 # Hck Desktop (Tauri 2)
 
-Professionelle Minimal-UI für Phase 1: Backend-Status, Health-Check, Projects-CRUD.
+Desktop-UI: Backend-Status, Projects/Scope, Tool Manager, Scan-Start (Phase-4-CLI).
 
 ## Scripts
 

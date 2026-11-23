@@ -1,0 +1,19 @@
+[
+  {
+    "RuleID": "generic-api-key",
+    "Description": "Generic API Key",
+    "File": "src/config.ts",
+    "StartLine": 14,
+    "EndLine": 14,
+    "Secret": "example-secret-value-not-a-real-credential",
+    "Fingerprint": "src/config.ts:generic-api-key:14"
+  },
+  {
+    "RuleID": "aws-access-key",
+    "Description": "AWS Access Key",
+    "File": ".env",
+    "StartLine": 2,
+    "Secret": "EXAMPLEKEYNOTREAL0000",
+    "Fingerprint": ".env:aws-access-key:2"
+  }
+]

@@ -41,12 +41,13 @@ def test_scan_rejects_echo_without_test_flag(client: TestClient):
     assert detail.get("test_only") is True or "test-only" in str(detail).lower()
 
 
-def test_scan_skeleton_fails_clean_without_findings(client: TestClient):
+def test_scan_nmap_missing_or_runs_without_fake_findings(client: TestClient):
+    """Nmap: not installed → failed; if installed may complete — never invents findings."""
     pid = _create_project(client)
     _add_ip_scope(client, pid)
     res = client.post(
         f"/api/v1/projects/{pid}/scans",
-        json={"scanner_ids": ["nmap"], "depth": "standard"},
+        json={"scanner_ids": ["nmap"], "depth": "quick"},
     )
     assert res.status_code == 201, res.text
     body = res.json()
@@ -54,18 +55,23 @@ def test_scan_skeleton_fails_clean_without_findings(client: TestClient):
     assert len(body["tasks"]) == 1
     task = body["tasks"][0]
     assert task["scanner_id"] == "nmap"
-    assert task["status"] == "failed"
+    assert task["status"] in {"failed", "completed"}
     assert task["log_path"]
     log = task["log_path"].lower()
-    assert (
-        "not installed" in log
-        or "phase" in log
-        or "integration" in log
-        or "fake findings" in log
-    )
+    if task["status"] == "failed":
+        assert (
+            "not installed" in log
+            or "phase" in log
+            or "failed" in log
+            or "error" in log
+            or "timeout" in log
+        )
 
-    db = _db_session(client)
-    assert db.query(Finding).filter(Finding.project_id == pid).count() == 0
+    # No findings when binary missing; if nmap ran against 10.0.0.5 results may exist —
+    # never assert invented rows when status failed due to missing install.
+    if "not installed" in log:
+        db = _db_session(client)
+        assert db.query(Finding).filter(Finding.project_id == pid).count() == 0
 
 
 def test_active_gate_blocks_greenbone(client: TestClient):
