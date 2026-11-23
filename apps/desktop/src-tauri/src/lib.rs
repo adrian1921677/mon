@@ -1,5 +1,6 @@
 //! Tauri shell: spawns and supervises the local FastAPI backend.
 
+use std::fs::OpenOptions;
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
@@ -53,6 +54,7 @@ fn snapshot_info(state: &BackendState) -> BackendInfo {
     }
 }
 
+/// Locate the Python backend package directory (`…/backend` containing `app/main.py`).
 fn resolve_backend_dir(app: &AppHandle) -> Result<PathBuf, String> {
     let resource = app
         .path()
@@ -60,9 +62,13 @@ fn resolve_backend_dir(app: &AppHandle) -> Result<PathBuf, String> {
         .map_err(|e| format!("resource dir: {e}"))?;
 
     let candidates = [
+        // Dev: monorepo layout next to apps/desktop/src-tauri
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../backend"),
+        // Packaged: bundled under $RESOURCE/backend
         resource.join("backend"),
+        // Fallback: cwd-relative (scripts / portable layout)
         PathBuf::from("backend"),
+        PathBuf::from("../backend"),
     ];
 
     for candidate in candidates {
@@ -70,7 +76,11 @@ fn resolve_backend_dir(app: &AppHandle) -> Result<PathBuf, String> {
             return candidate.canonicalize().map_err(|e| e.to_string());
         }
     }
-    Err("Backend-Verzeichnis nicht gefunden (erwartet apps/../backend)".into())
+    Err(
+        "Backend-Verzeichnis nicht gefunden. Erwartet `backend/app/main.py` \
+         (Dev: Repo-Root; Installer: Ressourcenordner). Siehe README / scripts/windows/setup-backend.ps1."
+            .into(),
+    )
 }
 
 fn python_fallback() -> Command {
@@ -81,6 +91,57 @@ fn python_fallback() -> Command {
     } else {
         Command::new("python3")
     }
+}
+
+/// Prefer explicit HCK_PYTHON, then portable/app-data venv, then backend/.venv, then system Python.
+fn resolve_python(app: &AppHandle, backend_dir: &PathBuf) -> Result<Command, String> {
+    if let Ok(explicit) = std::env::var("HCK_PYTHON") {
+        let path = PathBuf::from(&explicit);
+        if path.exists() {
+            return Ok(Command::new(path));
+        }
+        return Err(format!("HCK_PYTHON gesetzt, aber nicht gefunden: {explicit}"));
+    }
+
+    let mut candidates: Vec<PathBuf> = Vec::new();
+
+    if let Ok(data_dir) = app.path().app_data_dir() {
+        if cfg!(windows) {
+            candidates.push(data_dir.join("python-venv/Scripts/python.exe"));
+            candidates.push(data_dir.join(".venv/Scripts/python.exe"));
+        } else {
+            candidates.push(data_dir.join("python-venv/bin/python"));
+            candidates.push(data_dir.join(".venv/bin/python"));
+        }
+    }
+
+    if cfg!(windows) {
+        candidates.push(backend_dir.join(".venv/Scripts/python.exe"));
+        // Portable embeddable layout next to backend
+        candidates.push(backend_dir.join("python/python.exe"));
+        candidates.push(backend_dir.join("runtime/python.exe"));
+    } else {
+        candidates.push(backend_dir.join(".venv/bin/python"));
+        candidates.push(backend_dir.join("python/bin/python"));
+        candidates.push(backend_dir.join("runtime/bin/python"));
+    }
+
+    for path in candidates {
+        if path.exists() {
+            return Ok(Command::new(path));
+        }
+    }
+
+    Ok(python_fallback())
+}
+
+fn open_log_file(data_dir: &PathBuf) -> Option<std::fs::File> {
+    let log_path = data_dir.join("backend.log");
+    OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(log_path)
+        .ok()
 }
 
 fn spawn_backend_process(app: &AppHandle, state: &BackendState) -> Result<BackendInfo, String> {
@@ -97,23 +158,15 @@ fn spawn_backend_process(app: &AppHandle, state: &BackendState) -> Result<Backen
         .map_err(|e| format!("app data dir: {e}"))?;
     std::fs::create_dir_all(&data_dir).map_err(|e| e.to_string())?;
 
-    let venv_python = if cfg!(windows) {
-        backend_dir.join(".venv/Scripts/python.exe")
-    } else {
-        backend_dir.join(".venv/bin/python")
-    };
-
-    let mut command = if venv_python.exists() {
-        Command::new(venv_python)
-    } else {
-        python_fallback()
-    };
+    let mut command = resolve_python(app, &backend_dir)?;
 
     command
         .current_dir(&backend_dir)
         .env("HCK_HOST", DEFAULT_HOST)
         .env("HCK_PORT", port.to_string())
         .env("HCK_DATA_DIR", &data_dir)
+        .env("PYTHONUNBUFFERED", "1")
+        .env("PYTHONPATH", &backend_dir)
         .arg("-m")
         .arg("uvicorn")
         .arg("app.main:app")
@@ -121,13 +174,35 @@ fn spawn_backend_process(app: &AppHandle, state: &BackendState) -> Result<Backen
         .arg(DEFAULT_HOST)
         .arg("--port")
         .arg(port.to_string())
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null());
+        .stdin(Stdio::null());
 
-    let child = command
-        .spawn()
-        .map_err(|e| format!("Backend-Start fehlgeschlagen: {e}"))?;
+    if let Some(log) = open_log_file(&data_dir) {
+        let log_err = log.try_clone().ok();
+        command.stdout(Stdio::from(log));
+        if let Some(err_file) = log_err {
+            command.stderr(Stdio::from(err_file));
+        } else {
+            command.stderr(Stdio::null());
+        }
+    } else {
+        command.stdout(Stdio::null()).stderr(Stdio::null());
+    }
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    let child = command.spawn().map_err(|e| {
+        format!(
+            "Backend-Start fehlgeschlagen: {e}. \
+             Windows: `scripts/windows/setup-backend.ps1` ausführen oder HCK_PYTHON setzen. \
+             Log: {}",
+            data_dir.join("backend.log").display()
+        )
+    })?;
 
     {
         let mut guard = state.child.lock().expect("backend mutex");
