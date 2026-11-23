@@ -100,6 +100,153 @@ export interface ScanRead {
   tasks: ScanTaskRead[];
 }
 
+export type FindingStatus = "open" | "fixed" | "false_positive";
+export type FindingConfidence = "unknown" | "low" | "medium" | "high";
+export type FindingSeverity = "info" | "low" | "medium" | "high" | "critical";
+
+export interface FindingOccurrenceRead {
+  id: string;
+  finding_id: string;
+  scan_id: string | null;
+  asset_id: string | null;
+  raw_ref: string | null;
+  seen_at: string;
+}
+
+export interface EvidenceRead {
+  id: string;
+  finding_id: string;
+  kind: string;
+  path_or_blob_ref: string;
+  created_at: string;
+}
+
+export interface FindingRead {
+  id: string;
+  project_id: string;
+  fingerprint: string;
+  title: string;
+  severity: FindingSeverity;
+  category: string;
+  scanner_id: string;
+  status: FindingStatus;
+  confidence: FindingConfidence;
+  remediation: string | null;
+  description: string | null;
+  first_seen_at: string;
+  last_seen_at: string;
+  occurrence_count: number;
+  occurrences: FindingOccurrenceRead[];
+  evidence: EvidenceRead[];
+}
+
+export interface FindingListResponse {
+  items: FindingRead[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface AssetRead {
+  id: string;
+  project_id: string;
+  type: string;
+  identifier: string;
+  last_seen_at: string | null;
+  labels_json: unknown;
+  created_at: string;
+}
+
+export interface DashboardRead {
+  project_id: string;
+  asset_count: number;
+  finding_counts: {
+    total: number;
+    by_severity: Record<string, number>;
+    by_status: Record<string, number>;
+  };
+  critical_findings: Array<{
+    id: string;
+    title: string;
+    severity: string;
+    status: string;
+    scanner_id: string;
+    fingerprint: string;
+    last_seen_at: string | null;
+  }>;
+  running_scans: Array<{
+    id: string;
+    status: string;
+    started_at: string | null;
+    created_at: string | null;
+  }>;
+  trend: Array<{ date: string; new_findings: number }>;
+  scanners: {
+    installed: number;
+    total: number;
+    items: Array<{
+      scanner_id: string;
+      display_name: string;
+      status: string;
+      version: string | null;
+      preferred_runtime: string;
+      integration_phase: number;
+    }>;
+  };
+  recent_activities: Array<{
+    kind: string;
+    id: string;
+    status: string;
+    at: string | null;
+    summary: string;
+  }>;
+  generated_at: string;
+}
+
+export interface ScanCompareResult {
+  project_id: string;
+  baseline_scan_id: string;
+  candidate_scan_id: string;
+  summary: {
+    baseline_count: number;
+    candidate_count: number;
+    new: number;
+    resolved: number;
+    persistent: number;
+  };
+  new_findings: Array<{
+    id: string;
+    fingerprint: string;
+    title: string;
+    severity: string;
+    status: string;
+    scanner_id: string;
+  }>;
+  resolved_findings: Array<{
+    id: string;
+    fingerprint: string;
+    title: string;
+    severity: string;
+    status: string;
+    scanner_id: string;
+  }>;
+  persistent_findings: Array<{
+    id: string;
+    fingerprint: string;
+    title: string;
+    severity: string;
+    status: string;
+    scanner_id: string;
+  }>;
+  history: Array<{
+    id: string;
+    status: string;
+    created_at: string | null;
+    started_at: string | null;
+    finished_at: string | null;
+  }>;
+}
+
 export const DEFAULT_BASE_URL = "http://127.0.0.1:8765";
 export const SETTING_ACTIVE_TESTS = "security.active_tests_enabled";
 
@@ -257,6 +404,115 @@ export class HckApiClient {
   ): Promise<ScanRead> {
     return this.request<ScanRead>(
       `/api/v1/projects/${encodeURIComponent(projectId)}/scans`,
+      { method: "POST", body: JSON.stringify(body) },
+    );
+  }
+
+  getScan(projectId: string, scanId: string): Promise<ScanRead> {
+    return this.request<ScanRead>(
+      `/api/v1/projects/${encodeURIComponent(projectId)}/scans/${encodeURIComponent(scanId)}`,
+    );
+  }
+
+  listFindings(
+    projectId: string,
+    params?: {
+      status?: FindingStatus;
+      severity?: FindingSeverity;
+      scanner_id?: string;
+      q?: string;
+      limit?: number;
+      offset?: number;
+    },
+  ): Promise<FindingListResponse> {
+    const q = new URLSearchParams();
+    if (params?.status) q.set("status", params.status);
+    if (params?.severity) q.set("severity", params.severity);
+    if (params?.scanner_id) q.set("scanner_id", params.scanner_id);
+    if (params?.q) q.set("q", params.q);
+    if (params?.limit != null) q.set("limit", String(params.limit));
+    if (params?.offset != null) q.set("offset", String(params.offset));
+    const qs = q.toString();
+    return this.request<FindingListResponse>(
+      `/api/v1/projects/${encodeURIComponent(projectId)}/findings${qs ? `?${qs}` : ""}`,
+    );
+  }
+
+  getFinding(projectId: string, findingId: string): Promise<FindingRead> {
+    return this.request<FindingRead>(
+      `/api/v1/projects/${encodeURIComponent(projectId)}/findings/${encodeURIComponent(findingId)}`,
+    );
+  }
+
+  updateFinding(
+    projectId: string,
+    findingId: string,
+    body: {
+      status?: FindingStatus;
+      confidence?: FindingConfidence;
+      remediation?: string | null;
+      description?: string | null;
+    },
+  ): Promise<FindingRead> {
+    return this.request<FindingRead>(
+      `/api/v1/projects/${encodeURIComponent(projectId)}/findings/${encodeURIComponent(findingId)}`,
+      { method: "PATCH", body: JSON.stringify(body) },
+    );
+  }
+
+  getDashboard(projectId: string): Promise<DashboardRead> {
+    return this.request<DashboardRead>(
+      `/api/v1/projects/${encodeURIComponent(projectId)}/dashboard`,
+    );
+  }
+
+  listAssets(projectId: string): Promise<AssetRead[]> {
+    return this.request<AssetRead[]>(
+      `/api/v1/projects/${encodeURIComponent(projectId)}/assets`,
+    );
+  }
+
+  async downloadReport(
+    projectId: string,
+    kind: "project" | { findingId: string },
+    format: "json" | "pdf",
+  ): Promise<{ blob: Blob; filename: string; contentType: string }> {
+    const path =
+      typeof kind === "string"
+        ? `/api/v1/projects/${encodeURIComponent(projectId)}/reports/project?format=${format}`
+        : `/api/v1/projects/${encodeURIComponent(projectId)}/reports/findings/${encodeURIComponent(kind.findingId)}?format=${format}`;
+    const response = await fetch(`${this.base}${path}`, { headers: { Accept: "*/*" } });
+    if (!response.ok) {
+      const text = await response.text();
+      let data: unknown = text;
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch {
+        /* keep text */
+      }
+      throw new ApiError(`API ${response.status} ${path}`, response.status, data);
+    }
+    const blob = await response.blob();
+    const cd = response.headers.get("Content-Disposition") || "";
+    const match = /filename="?([^"]+)"?/.exec(cd);
+    const filename =
+      match?.[1] ||
+      (typeof kind === "string"
+        ? `hck-project.${format}`
+        : `hck-finding.${format}`);
+    return {
+      blob,
+      filename,
+      contentType: response.headers.get("Content-Type") || blob.type,
+    };
+  }
+
+  compareScans(
+    projectId: string,
+    body: { baseline_scan_id: string; candidate_scan_id: string },
+  ): Promise<ScanCompareResult> {
+    return this.request<ScanCompareResult>(
+      `/api/v1/projects/${encodeURIComponent(projectId)}/reports/compare`,
       { method: "POST", body: JSON.stringify(body) },
     );
   }

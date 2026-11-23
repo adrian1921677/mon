@@ -1,4 +1,4 @@
-# Hck Backend (Phase 7)
+# Hck Backend (Phase 8)
 
 Lokales FastAPI-Backend, bindet ausschließlich `127.0.0.1`.
 
@@ -6,10 +6,7 @@ Lokales FastAPI-Backend, bindet ausschließlich `127.0.0.1`.
 
 - Python 3.11+
 - Windows 11: native oder **WSL2** empfohlen
-- Optional Phase-4-Binaries: `nmap`, `semgrep`, `trivy`, `gitleaks`
-- Optional Phase-5-Binaries: `zap-baseline.py` / `zap.sh`, `nuclei`
-- Optional Phase-6-Binaries: `schemathesis` / `st`
-- Optional Phase-7: `gvm-cli` (gvm-tools) + Greenbone Docker; `powershell`/`pwsh`; WSL2/`bash`
+- Optional Phase-4–7-Binaries je Scanner
 - Optional: [uv](https://github.com/astral-sh/uv)
 
 ## Setup
@@ -17,13 +14,7 @@ Lokales FastAPI-Backend, bindet ausschließlich `127.0.0.1`.
 ```bash
 cd backend
 python -m venv .venv
-
-# Windows (PowerShell)
-.\.venv\Scripts\Activate.ps1
-
-# WSL / Linux / macOS
 source .venv/bin/activate
-
 pip install -e ".[dev]"
 ```
 
@@ -35,12 +26,12 @@ alembic upgrade head
 
 SQLite unter `~/.hck/hck.db` (WAL + Foreign Keys). Override: `HCK_DATA_DIR` / `HCK_DATABASE_URL`.
 
+Phase-8-Migration ergänzt Finding-Felder: `status`, `confidence`, `remediation`, `description`.
+
 ## Start
 
 ```bash
 python -m app.main
-# oder
-uvicorn app.main:app --host 127.0.0.1 --port 8765
 ```
 
 - Health: `GET http://127.0.0.1:8765/health`
@@ -52,23 +43,20 @@ uvicorn app.main:app --host 127.0.0.1 --port 8765
 pytest
 ```
 
-Parser-/Normalize-Tests nutzen Fixtures unter `tests/fixtures/` (kein Netzwerk-Scan in CI).
-
-## API (Auszug)
+## API (Phase 8 Auszug)
 
 | Methode | Pfad | Beschreibung |
 | --- | --- | --- |
-| GET | `/api/v1/tools` | Live-Probe produktiver Scanner |
-| POST | `/api/v1/tools/refresh` | Probe + `tool_installations` |
-| GET/POST | `/api/v1/projects/{id}/scans` | Scans listen / starten |
-| GET/PUT | `/api/v1/settings` | u. a. `security.active_tests_enabled` |
+| GET | `/api/v1/projects/{id}/dashboard` | Aggregates (Assets, Scans, Findings, Trend, Tools) |
+| GET | `/api/v1/projects/{id}/findings` | Finding-Liste (Filter Status/Severity) |
+| GET/PATCH | `/api/v1/projects/{id}/findings/{fid}` | Detail / Status & Remediation |
+| GET | `/api/v1/projects/{id}/assets` | Asset Inventory |
+| GET | `/api/v1/projects/{id}/reports/project?format=json\|pdf` | Projektbericht |
+| GET | `/api/v1/projects/{id}/reports/findings/{fid}?format=…` | Finding-Bericht |
+| POST | `/api/v1/projects/{id}/reports/compare` | Scan-Vergleich + Verlauf |
 
-## Phase 7
+## Invarianten
 
-- **Greenbone / OpenVAS** (`app/scanners/greenbone.py`) — GMP via `gvm-cli` / Docker; Active-Gate
-- **Windows Host Audit** — read-only PowerShell-Skript
-- **Linux Host Audit** — read-only Bash via WSL2/native
-- Kurz-Doku: `app/scanners/docs/greenbone.md`, `windows_host_audit.md`, `linux_host_audit.md`
-- Findings → DB (Fingerprint-Dedup); fehlendes Binary → klarer Fehler, **keine** Fake-Findings
+Findings nur aus Adapter-Normalisierung → DB. Leere Projekte liefern leere Listen/Reports — **keine** Simulation.
 
-**Phase 8:** Findings-UI, Dashboard, Reporting
+**Phase 9:** Windows Packaging + Stabilisierung
