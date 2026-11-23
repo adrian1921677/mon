@@ -1,4 +1,4 @@
-# Hck — Lokale Pentesting-Plattform (Phase 8)
+# Hck — Lokale Pentesting-Plattform (Phase 9)
 
 Monorepo für die **lokale** Windows-11-Sicherheitsplattform. Scan-Engine und API laufen nur auf `127.0.0.1`.
 
@@ -7,54 +7,146 @@ Monorepo für die **lokale** Windows-11-Sicherheitsplattform. Scan-Engine und AP
 ## Struktur
 
 ```
-backend/           FastAPI + SQLite (WAL) + Alembic
-  app/scope/       Scope Engine (Backend-only)
-  app/process/     Process Manager (kein shell=True)
-  app/scanners/    Registry + Adapter (Phase 4–7 CLI)
-  app/findings/    Fingerprint + Persistenz
-  app/reporting/   JSON/PDF-Export, Scan-Vergleich
-  app/jobs/        Scan-Pipeline
-apps/desktop/      Tauri 2 + Vite + React + TypeScript
+backend/                 FastAPI + SQLite (WAL) + Alembic
+  app/scope/             Scope Engine (Backend-only)
+  app/process/           Process Manager (kein shell=True)
+  app/scanners/          Registry + Adapter (Phase 4–7 CLI)
+  app/findings/          Fingerprint + Persistenz
+  app/reporting/         JSON/PDF-Export, Scan-Vergleich
+  app/jobs/              Scan-Pipeline
+apps/desktop/            Tauri 2 + Vite + React + TypeScript
+scripts/windows/         Setup, Dev-Start, Installer-Build, Smoke
+docs/windows-packaging.md
 ```
 
-## Voraussetzungen
+## Voraussetzungen (Windows 11)
 
 | Komponente | Hinweis |
 | --- | --- |
-| Python 3.11+ | Windows: Installer oder **WSL2** |
-| Node.js 20+ | für Desktop-UI |
-| Rust + Tauri 2 | [Tauri Voraussetzungen](https://tauri.app/start/prerequisites/) — unter Windows WebView2 |
-| Optional Phase 4–7 | Scanner-Binaries / WSL / Docker je Adapter |
-| Windows 11 | Zielplattform; Dev auch unter WSL/Linux möglich |
+| **Windows 11** | Zielplattform (Dev auch unter WSL/Linux möglich) |
+| **Python 3.11+** | [python.org](https://www.python.org/downloads/) — Haken „Add python.exe to PATH“; oder WSL2 |
+| **Node.js 20+** | Desktop-UI / Tauri CLI |
+| **Rust (MSVC)** + Tauri 2 | [Tauri Prerequisites](https://tauri.app/start/prerequisites/) inkl. **WebView2** |
+| **WiX Toolset v3** | nur für **MSI**-Build |
+| **NSIS** | für `*-setup.exe` (Tauri kann NSIS auf Windows nachladen) |
 
-## Backend starten
+### Scanner-Tools (optional, echte Binaries — keine Simulation)
 
-```bash
+| Tool | Typische Runtime | Doku |
+| --- | --- | --- |
+| Nmap (+ Npcap) | Windows-native | `backend/app/scanners/docs/nmap.md` |
+| Semgrep, Trivy, Gitleaks | WSL2 / Docker / Binary | jeweilige `docs/*.md` |
+| OWASP ZAP, Nuclei | Java/Docker bzw. Binary/WSL | `zap.md`, `nuclei.md` |
+| Schemathesis | Python (Backend-venv) | `schemathesis.md` |
+| Greenbone/OpenVAS | Docker | `greenbone.md` |
+| Host Audit | PowerShell / Bash (WSL) | `windows_host_audit.md`, `linux_host_audit.md` |
+
+Fehlende Installation → Tool Manager zeigt Status `not_installed`; Scans starten **nicht** mit Fake-Findings.
+
+### WSL2 / Docker
+
+- **WSL2:** empfohlen für Linux-first-Tools (Semgrep, Trivy, Gitleaks, Nuclei, testssl, Linux Host Audit).
+- **Docker Desktop:** für Greenbone und optional ZAP-Container; Ressourcen (RAM/CPU) großzügig bemessen.
+- Adapter wählen Runtime über Install-Probe (native → WSL → Docker); Details in den Scanner-Docs.
+
+---
+
+## Schnellstart Windows 11 (Entwicklung)
+
+In **PowerShell** (Repo-Root):
+
+```powershell
+# 1) Backend-venv + Migrationen
+.\scripts\windows\setup-backend.ps1
+
+# 2a) Nur Backend
+.\scripts\windows\dev-start.ps1
+
+# 2b) Backend + Tauri-Desktop
+.\scripts\windows\dev-start.ps1 -Desktop
+
+# 3) Smoke
+.\scripts\windows\smoke-check.ps1 -StartBackend
+```
+
+Manuell:
+
+```powershell
 cd backend
-python -m venv .venv
-source .venv/bin/activate   # Windows: .\.venv\Scripts\Activate.ps1
+py -3 -m venv .venv
+.\.venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
 alembic upgrade head
 python -m app.main
 ```
 
-Tests: `cd backend && pytest` (Parser mit Fixtures, kein Netzwerk-Scan in CI).
-
-## Desktop starten
-
-```bash
-cd apps/desktop
-npm install
+```powershell
+cd apps\desktop
+npm install --legacy-peer-deps
 npm run tauri dev
-# oder nur UI: npm run dev
+# nur UI: npm run dev
 ```
 
-## Phase-8-Scope
+Health: `http://127.0.0.1:8765/health`
 
-- **Dashboard** — Assets, laufende Scans, Finding-Counts, kritische Findings, Trend, Scanner-Status, Aktivitäten
-- **Findings** — Liste/Detail, Status Open/Fixed/False Positive, Confidence, Evidence, Remediation, Dedup (Occurrences)
-- **Reports** — JSON/PDF Projekt- & Finding-Export, Scan-Vergleich/Verlauf
-- Desktop-Navigation: Dashboard, Projekte, Inventory, Security-Tabs → Scan Manager, Findings, Reports, Tools, Settings
-- Nur echte DB-Daten — **keine** Fake-Findings
+---
 
-**Phase 9:** Windows Packaging + Stabilisierung
+## Installer bauen (Windows 11)
+
+```powershell
+.\scripts\windows\build-installer.ps1
+# oder:
+cd apps\desktop
+npm run tauri:build          # NSIS + MSI
+npm run tauri:build:nsis     # nur Setup-EXE
+npm run tauri:build:msi      # nur MSI (WiX)
+```
+
+Nach Installation einmal Backend-venv im AppData anlegen:
+
+```powershell
+.\scripts\windows\setup-backend.ps1 -Portable
+```
+
+Details und **Linux-CI-Grenzen** (MSI nur auf Windows, NSIS-Cross-Compile nicht in CI): [`docs/windows-packaging.md`](docs/windows-packaging.md).
+
+### Backend-Bundling / Start-Pfad
+
+1. Installer legt Backend-Quellen unter den Tauri-**Resources**-Ordner (`backend/`).
+2. Desktop-Shell startet Uvicorn gegen `app.main:app` mit `HCK_DATA_DIR` = App-Data.
+3. Python: `HCK_PYTHON` → `%LOCALAPPDATA%\com.hck.platform\python-venv` → `backend\.venv` → portable `backend\python` → `py -3`.
+4. Log: `backend.log` im App-Data-Verzeichnis.
+
+---
+
+## Dev unter Linux / WSL (ohne Windows-Installer)
+
+```bash
+cd backend
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+alembic upgrade head
+python -m app.main
+```
+
+```bash
+cd apps/desktop && npm install --legacy-peer-deps
+npm run dev          # UI
+npm run typecheck
+# npm run tauri dev  # braucht WebKit/GTK-Deps; Windows-Bundles hier nicht
+```
+
+Tests: `cd backend && pytest`  
+Smoke: `./scripts/smoke-check.sh --start`
+
+---
+
+## Phase-9-Scope
+
+- Tauri **NSIS + MSI**-Konfiguration, Windows-Scripts, Packaging-Doku
+- Backend-Resource-Bundling + robuster Desktop-Startpfad (venv/portable/`HCK_PYTHON`)
+- Root-README: Install/Start, Tool-Voraussetzungen, WSL/Docker
+- Stabilisierung (Tests/Typecheck), Smoke-Scripts
+- **Kein** neuer Scanner-/Feature-Scope; **keine** Fake-Findings
+
+Vorherige Phasen: Dashboard, Findings, Reports, Scanner Phase 4–7 — siehe Git-History / frühere READMEs.

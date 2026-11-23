@@ -890,9 +890,24 @@ export default function App() {
             className="mb-5 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-[var(--danger)]"
           >
             {error}
-            {!isTauriRuntime() && connection === "offline" ? (
+            {connection === "offline" ? (
               <span className="mt-1 block text-[var(--muted)]">
-                Backend: <code className="font-mono">cd backend && python -m app.main</code>
+                {isTauriRuntime() ? (
+                  <>
+                    Backend-Start fehlgeschlagen? Windows:{" "}
+                    <code className="font-mono">
+                      .\scripts\windows\setup-backend.ps1
+                    </code>{" "}
+                    (nach Installer:{" "}
+                    <code className="font-mono">-Portable</code>). Log im App-Data-
+                    Ordner: <code className="font-mono">backend.log</code>
+                  </>
+                ) : (
+                  <>
+                    Backend:{" "}
+                    <code className="font-mono">cd backend && python -m app.main</code>
+                  </>
+                )}
               </span>
             ) : null}
           </div>

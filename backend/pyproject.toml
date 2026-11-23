@@ -1,7 +1,7 @@
 [project]
 name = "hck-backend"
-version = "0.8.0"
-description = "Local pentesting platform backend (Phase 8: Findings, Dashboard, Reporting)"
+version = "0.9.0"
+description = "Local pentesting platform backend (Phase 9: packaging + stabilization)"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -29,6 +29,7 @@ packages = ["app"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
 pythonpath = ["."]
 
