@@ -19,7 +19,7 @@ from app.db.models import (
 )
 from app.findings.persist import persist_normalized_findings
 from app.process.manager import ProcessManager
-from app.scope.active_gate import require_active_tests
+from app.scope.active_gate import is_active_tests_enabled, require_active_tests
 from app.scope.engine import ScopeEngine
 from app.scope.types import ScopeTarget
 from app.scanners.base import (
@@ -70,7 +70,7 @@ def _targets_from_scope(entries: list[ScopeEntry]) -> list[ScopeTarget]:
 def _artifact_files_from_ctx(ctx: ScanContext) -> dict[str, Path]:
     files: dict[str, Path] = {}
     opts = ctx.options or {}
-    for key in ("nmap_xml", "trivy_json", "gitleaks_json"):
+    for key in ("nmap_xml", "trivy_json", "gitleaks_json", "zap_json", "nuclei_jsonl"):
         raw = opts.get(key)
         if isinstance(raw, str) and raw:
             files[key] = Path(raw)
@@ -94,7 +94,7 @@ async def create_scan_stub(
 
     Productive scanners that are not installed → task ``failed`` (clear reason).
     Skeletons that are installed but not CLI-ready → task ``failed`` with NotImplemented.
-    Phase-4 CLI adapters persist real findings (fingerprint dedup).
+    Phase-4/5 CLI adapters persist real findings (fingerprint dedup).
     Echo only when ``allow_test_adapters`` (tests).
     """
     if not scanner_ids:
@@ -278,6 +278,9 @@ async def run_task(
         depth=depth,
         allow_test_findings=allow_test_findings,
         work_dir=work_dir,
+        options={
+            "active_tests_enabled": is_active_tests_enabled(db),
+        },
     )
 
     try:

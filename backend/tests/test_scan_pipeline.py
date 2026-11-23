@@ -166,3 +166,80 @@ def test_list_scans(client: TestClient):
     listed = client.get(f"/api/v1/projects/{pid}/scans")
     assert listed.status_code == 200
     assert len(listed.json()) >= 1
+
+
+def _add_url_scope(
+    client: TestClient,
+    project_id: str,
+    value: str = "http://10.20.30.40/",
+) -> None:
+    """Use an IP-literal URL so CI does not depend on public DNS."""
+    res = client.post(
+        f"/api/v1/projects/{project_id}/scope",
+        json={"type": "url", "value": value, "meta_json": {}},
+    )
+    assert res.status_code == 201, res.text
+
+
+def test_scan_zap_missing_or_runs_without_fake_findings(client: TestClient):
+    pid = _create_project(client)
+    _add_url_scope(client, pid)
+    res = client.post(
+        f"/api/v1/projects/{pid}/scans",
+        json={"scanner_ids": ["zap"], "depth": "standard"},
+    )
+    assert res.status_code == 201, res.text
+    body = res.json()
+    assert body["status"] in {"failed", "completed"}
+    task = body["tasks"][0]
+    assert task["scanner_id"] == "zap"
+    assert task["status"] in {"failed", "completed"}
+    assert task["log_path"]
+    if "not installed" in (task["log_path"] or "").lower():
+        db = _db_session(client)
+        assert db.query(Finding).filter(Finding.project_id == pid).count() == 0
+
+
+def test_scan_nuclei_missing_or_runs_without_fake_findings(client: TestClient):
+    pid = _create_project(client)
+    _add_url_scope(client, pid)
+    res = client.post(
+        f"/api/v1/projects/{pid}/scans",
+        json={"scanner_ids": ["nuclei"], "depth": "quick"},
+    )
+    assert res.status_code == 201, res.text
+    task = res.json()["tasks"][0]
+    assert task["scanner_id"] == "nuclei"
+    assert task["status"] in {"failed", "completed"}
+    assert task["log_path"]
+    if "not installed" in (task["log_path"] or "").lower():
+        db = _db_session(client)
+        assert db.query(Finding).filter(Finding.project_id == pid).count() == 0
+
+
+def test_zap_deep_without_gate_fails_task(client: TestClient):
+    """Baseline adapter is not class-active; deep still needs Active-Gate in build_command."""
+    pid = _create_project(client)
+    _add_url_scope(client, pid)
+    client.put(
+        f"/api/v1/settings/{SETTING_ACTIVE_TESTS}",
+        json={"value_json": False},
+    )
+    res = client.post(
+        f"/api/v1/projects/{pid}/scans",
+        json={"scanner_ids": ["zap"], "depth": "deep"},
+    )
+    assert res.status_code == 201, res.text
+    task = res.json()["tasks"][0]
+    assert task["scanner_id"] == "zap"
+    # Missing binary OR Active-Gate denial — both fail without fake findings
+    assert task["status"] == "failed"
+    log = (task["log_path"] or "").lower()
+    assert (
+        "active" in log
+        or "not installed" in log
+        or "gate" in log
+        or "active_tests" in log
+    )
+    db = _db_session(client)
+    assert db.query(Finding).filter(Finding.project_id == pid).count() == 0

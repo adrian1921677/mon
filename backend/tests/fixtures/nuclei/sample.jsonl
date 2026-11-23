@@ -1,0 +1,4 @@
+{"template-id":"tech-detect","info":{"name":"Wappalyzer Technology Detection","severity":"info","tags":["tech"]},"host":"https://example.test","matched-at":"https://example.test","type":"http","ip":"203.0.113.10"}
+{"template-id":"http-missing-security-headers","info":{"name":"HTTP Missing Security Headers","severity":"info","tags":["misconfig","headers"]},"host":"https://example.test","matched-at":"https://example.test/","type":"http"}
+{"template-id":"exposed-panel","info":{"name":"Exposed Admin Panel","severity":"medium","tags":["exposure","panel"]},"host":"https://example.test","matched-at":"https://example.test/admin","type":"http"}
+{"template-id":"should-be-filtered","info":{"name":"Dangerous Exploit Template","severity":"critical","tags":["exploit","rce"]},"host":"https://example.test","matched-at":"https://example.test/","type":"http"}

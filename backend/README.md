@@ -1,4 +1,4 @@
-# Hck Backend (Phase 4)
+# Hck Backend (Phase 5)
 
 Lokales FastAPI-Backend, bindet ausschließlich `127.0.0.1`.
 
@@ -7,6 +7,7 @@ Lokales FastAPI-Backend, bindet ausschließlich `127.0.0.1`.
 - Python 3.11+
 - Windows 11: native oder **WSL2** empfohlen
 - Optional Phase-4-Binaries: `nmap`, `semgrep`, `trivy`, `gitleaks`
+- Optional Phase-5-Binaries: `zap-baseline.py` / `zap.sh`, `nuclei`
 - Optional: [uv](https://github.com/astral-sh/uv)
 
 ## Setup
@@ -60,12 +61,12 @@ Parser-/Normalize-Tests nutzen Fixtures unter `tests/fixtures/` (kein Netzwerk-S
 | GET/POST | `/api/v1/projects/{id}/scans` | Scans listen / starten |
 | GET/PUT | `/api/v1/settings` | u. a. `security.active_tests_enabled` |
 
-## Phase 4
+## Phase 5
 
-- Volle CLI: **Nmap**, **Semgrep**, **Trivy**, **Gitleaks** (`app/scanners/`)
-- Kurz-Doku: `app/scanners/docs/*.md`
-- Findings → `findings` + `finding_occurrences` + `evidence` (Fingerprint-Dedup)
-- Pipeline: ScopeEngine + ProcessManager + Active-Gate
-- Fehlendes Binary → klarer Fehler, **keine** Fake-Findings
+- Volle CLI: **OWASP ZAP**, **Nuclei** (`app/scanners/`)
+- ZAP: Baseline/passiv zuerst; `depth=deep` nur mit Active-Gate
+- Nuclei: Allowlist-Tags, Exclude exploit/dos/intrusive/fuzz/…
+- Kurz-Doku: `app/scanners/docs/{zap,nuclei}.md`
+- Findings → DB (Fingerprint-Dedup); fehlendes Binary → klarer Fehler, **keine** Fake-Findings
 
-**Phase 5:** OWASP ZAP, Nuclei
+**Phase 6:** Schemathesis

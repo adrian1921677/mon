@@ -72,8 +72,10 @@ export default function App() {
   const refreshTools = useCallback(async () => {
     const list = await client.listTools(false);
     setTools(list);
-    if (list.length && !list.some((t) => t.scanner_id === selectedScanner)) {
-      setSelectedScanner(list[0].scanner_id);
+    const installed = list.filter((t) => t.status === "installed");
+    const pool = installed.length ? installed : list;
+    if (pool.length && !pool.some((t) => t.scanner_id === selectedScanner)) {
+      setSelectedScanner(pool[0].scanner_id);
     }
   }, [client, selectedScanner]);
 
@@ -342,7 +344,7 @@ export default function App() {
             Hck
           </h1>
           <p className="mt-1 max-w-xl text-sm text-[var(--muted)]">
-            Phase 4: Nmap, Semgrep, Trivy, Gitleaks — echte CLI-Scans, Findings in DB.
+            Phase 5: ZAP & Nuclei (+ Phase 4) — echte CLI-Scans, Findings in DB.
           </p>
           <div className="mt-3 flex gap-2">
             <button
@@ -435,8 +437,8 @@ export default function App() {
                 Tool Manager
               </h2>
               <p className="mt-1 text-sm text-[var(--muted)]">
-                Verfügbarkeit der Scanner-Adapter. Echo (Test) erscheint hier nicht. Phase-4-Tools
-                (Nmap/Semgrep/Trivy/Gitleaks) laufen lokal, wenn installiert.
+                Verfügbarkeit der Scanner-Adapter. Echo (Test) erscheint hier nicht. Phase-4/5-Tools
+                (Nmap/Semgrep/Trivy/Gitleaks/ZAP/Nuclei) laufen lokal, wenn installiert.
               </p>
             </div>
             <button
@@ -695,8 +697,9 @@ export default function App() {
                   Scan starten
                 </h2>
                 <p className="mt-1 text-sm text-[var(--muted)]">
-                  Scope + Active-Gate + ProcessManager. Phase-4-Tools (Nmap/Semgrep/Trivy/Gitleaks)
-                  schreiben echte Findings — fehlende Binaries enden als failed, ohne Fake-Results.
+                  Scope + Active-Gate + ProcessManager. Installierte Tools (inkl. ZAP Baseline /
+                  Nuclei) schreiben echte Findings — fehlende Binaries enden als failed, ohne
+                  Fake-Results. ZAP deep/active braucht Active-Gate.
                 </p>
                 <div className="mt-4 flex flex-wrap items-end gap-3">
                   <label className="block text-sm">
@@ -706,7 +709,10 @@ export default function App() {
                       onChange={(e) => setSelectedScanner(e.target.value)}
                       className="min-w-[200px] rounded border border-[var(--line)] px-2 py-2"
                     >
-                      {tools.map((t) => (
+                      {(tools.some((t) => t.status === "installed")
+                        ? tools.filter((t) => t.status === "installed")
+                        : tools
+                      ).map((t) => (
                         <option key={t.scanner_id} value={t.scanner_id}>
                           {t.display_name} ({t.status})
                         </option>
