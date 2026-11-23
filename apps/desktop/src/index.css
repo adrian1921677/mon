@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+  --bg: #f3f4f6;
+  --panel: #ffffff;
+  --ink: #111827;
+  --muted: #6b7280;
+  --line: #e5e7eb;
+  --accent: #0f766e;
+  --accent-ink: #ecfdf5;
+  --danger: #b91c1c;
+  --ok: #15803d;
+  --warn: #a16207;
+  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+@font-face {
+  font-family: "IBM Plex Sans";
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: local("IBM Plex Sans"), local("Segoe UI");
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+body {
+  background:
+    radial-gradient(1200px 500px at 10% -10%, #d1fae5 0%, transparent 55%),
+    radial-gradient(900px 400px at 100% 0%, #e0e7ff 0%, transparent 50%),
+    var(--bg);
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
