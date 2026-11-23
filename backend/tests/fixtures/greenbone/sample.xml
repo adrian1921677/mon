@@ -1,0 +1,63 @@
+<?xml version="1.0"?>
+<get_reports_response status="200" status_text="OK">
+  <report id="report-1">
+    <results>
+      <result id="r1">
+        <name>SSL/TLS: Deprecated TLSv1.0 Protocol Detection</name>
+        <host>10.0.0.5</host>
+        <port>443/tcp</port>
+        <threat>Medium</threat>
+        <severity>5.0</severity>
+        <description>The remote service accepts connections encrypted using TLS 1.0.</description>
+        <nvt oid="1.3.6.1.4.1.25623.1.0.21184">
+          <name>SSL/TLS: Deprecated TLSv1.0 Protocol Detection</name>
+          <family>SSL and TLS</family>
+        </nvt>
+      </result>
+      <result id="r2">
+        <name>HTTP Security Headers Missing</name>
+        <host>10.0.0.5</host>
+        <port>80/tcp</port>
+        <threat>Low</threat>
+        <severity>2.6</severity>
+        <description>X-Frame-Options header is missing.</description>
+        <nvt oid="1.3.6.1.4.1.25623.1.0.112151">
+          <name>HTTP Security Headers Missing</name>
+        </nvt>
+      </result>
+      <result id="r3">
+        <name>OpenSSH &lt; 8.0 Multiple Vulnerabilities</name>
+        <host>10.0.0.5</host>
+        <port>22/tcp</port>
+        <threat>High</threat>
+        <severity>7.5</severity>
+        <description>The remote SSH server is affected.</description>
+        <nvt oid="1.3.6.1.4.1.25623.1.0.108612">
+          <name>OpenSSH Multiple Vulnerabilities</name>
+        </nvt>
+      </result>
+      <result id="r4">
+        <name>Critical Remote Code Execution</name>
+        <host>10.0.0.5</host>
+        <port>445/tcp</port>
+        <threat>High</threat>
+        <severity>9.8</severity>
+        <description>Critical issue.</description>
+        <nvt oid="1.3.6.1.4.1.25623.1.0.999999">
+          <name>Critical Remote Code Execution</name>
+        </nvt>
+      </result>
+      <result id="r-log">
+        <name>Host Scan Timing</name>
+        <host>10.0.0.5</host>
+        <port>general/tcp</port>
+        <threat>Log</threat>
+        <severity>0.0</severity>
+        <description>Timing info</description>
+        <nvt oid="1.3.6.1.4.1.25623.1.0.1">
+          <name>Host Scan Timing</name>
+        </nvt>
+      </result>
+    </results>
+  </report>
+</get_reports_response>

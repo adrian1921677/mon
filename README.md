@@ -1,4 +1,4 @@
-# Hck — Lokale Pentesting-Plattform (Phase 6)
+# Hck — Lokale Pentesting-Plattform (Phase 7)
 
 Monorepo für die **lokale** Windows-11-Sicherheitsplattform. Scan-Engine und API laufen nur auf `127.0.0.1`.
 
@@ -10,7 +10,7 @@ Monorepo für die **lokale** Windows-11-Sicherheitsplattform. Scan-Engine und AP
 backend/           FastAPI + SQLite (WAL) + Alembic
   app/scope/       Scope Engine (Backend-only)
   app/process/     Process Manager (kein shell=True)
-  app/scanners/    Registry + Adapter (Phase 4–6 CLI)
+  app/scanners/    Registry + Adapter (Phase 4–7 CLI)
   app/findings/    Fingerprint + Persistenz
   app/jobs/        Scan-Pipeline
 apps/desktop/      Tauri 2 + Vite + React + TypeScript
@@ -26,6 +26,7 @@ apps/desktop/      Tauri 2 + Vite + React + TypeScript
 | Optional Phase 4 | `nmap`, `semgrep`, `trivy`, `gitleaks` |
 | Optional Phase 5 | `zap-baseline.py` / `zap.sh`, `nuclei` |
 | Optional Phase 6 | `schemathesis` / `st` (`pip install schemathesis`) |
+| Optional Phase 7 | `gvm-cli` (gvm-tools) + Greenbone Docker; `powershell`/`pwsh`; WSL2/`bash` |
 | Windows 11 | Zielplattform; Dev auch unter WSL/Linux möglich |
 
 ## Backend starten
@@ -50,11 +51,12 @@ npm run tauri dev
 # oder nur UI: npm run dev
 ```
 
-## Phase-6-Scope
+## Phase-7-Scope
 
-- Volle CLI-Integration: **Schemathesis** (API-Spec / OpenAPI; Active-Gate Pflicht; risikoarme Phases)
-- Weiterhin Phase 5: OWASP ZAP, Nuclei · Phase 4: Nmap, Semgrep, Trivy, Gitleaks
+- Volle CLI-Integration: **Greenbone/OpenVAS**, **Windows Host Audit**, **Linux Host Audit** (WSL2)
+- Weiterhin Phase 6: Schemathesis · Phase 5: ZAP, Nuclei · Phase 4: Nmap, Semgrep, Trivy, Gitleaks
 - Findings → DB mit Fingerprint-Dedup; fehlendes Binary → klarer Fehler, **keine** Fake-Findings
-- Desktop: installierte Tools im Scan-Flow
+- Greenbone: Active-Gate Pflicht; Host-Audits risikarm (read-only)
+- Desktop: Tools im Scan-Flow
 
-**Phase 7:** Greenbone + Host Security
+**Phase 8:** Findings-UI, Dashboard, Reporting
