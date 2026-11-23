@@ -48,6 +48,18 @@ Nach Installation einmal:
 .\scripts\windows\setup-backend.ps1 -Portable
 ```
 
+## GitHub Actions (Windows Runner)
+
+Workflow: `.github/workflows/windows-installer.yml` auf `windows-latest`.
+
+| Trigger | Release? |
+| --- | --- |
+| `workflow_dispatch` (`create_release=true`) | ja → Tag `v<version>` + Assets |
+| Push Tag `v*` | ja |
+| Push `main` / PR | nein — nur Build-Artefakte |
+
+Baut NSIS + MSI (WiX v3 via Chocolatey), lädt Artefakte hoch und hängt bei Release zusätzlich `setup-backend.ps1` / `smoke-check.ps1` / diese Doku an.
+
 ## Linux-CI-Grenzen
 
 | Bundle | Auf Linux-CI | Hinweis |
@@ -57,7 +69,7 @@ Nach Installation einmal:
 | Frontend `npm run build` / `typecheck` | Ja | ohne Windows-Bundler |
 | Backend `pytest` | Ja | Parser-Fixtures, kein Netzwerk-Scan |
 
-Empfehlung: Installer auf einem Windows-11-Host oder Windows-GitHub-Actions-Runner bauen. Linux-Agenten validieren Code/Tests/Typecheck + Smoke gegen lokal gestartetes Backend.
+Empfehlung: Installer über den Windows-Actions-Workflow oder lokal auf Windows 11 bauen. Linux-Agenten validieren Code/Tests/Typecheck + Smoke gegen lokal gestartetes Backend.
 
 ## Manuell auf Windows validieren
 
