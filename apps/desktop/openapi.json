@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Hck Local Platform",
-    "version": "0.1.0"
+    "version": "0.2.0"
   },
   "paths": {
     "/health": {
@@ -201,6 +201,306 @@
         "responses": {
           "204": {
             "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/scope": {
+      "get": {
+        "tags": [
+          "scope"
+        ],
+        "summary": "List Scope",
+        "operationId": "list_scope_api_v1_projects__project_id__scope_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ScopeEntryRead"
+                  },
+                  "title": "Response List Scope Api V1 Projects  Project Id  Scope Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "scope"
+        ],
+        "summary": "Create Scope",
+        "operationId": "create_scope_api_v1_projects__project_id__scope_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScopeEntryCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScopeEntryRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/scope/{entry_id}": {
+      "get": {
+        "tags": [
+          "scope"
+        ],
+        "summary": "Get Scope",
+        "operationId": "get_scope_api_v1_projects__project_id__scope__entry_id__get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "entry_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Entry Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScopeEntryRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "scope"
+        ],
+        "summary": "Update Scope",
+        "operationId": "update_scope_api_v1_projects__project_id__scope__entry_id__patch",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "entry_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Entry Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScopeEntryUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScopeEntryRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "scope"
+        ],
+        "summary": "Delete Scope",
+        "operationId": "delete_scope_api_v1_projects__project_id__scope__entry_id__delete",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "entry_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Entry Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/scope/validate": {
+      "post": {
+        "tags": [
+          "scope"
+        ],
+        "summary": "Validate Scope",
+        "operationId": "validate_scope_api_v1_projects__project_id__scope_validate_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScopeValidateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScopeValidateResponse"
+                }
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -585,6 +885,243 @@
         },
         "type": "object",
         "title": "ProjectUpdate"
+      },
+      "ScopeEntryCreate": {
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/ScopeEntryType"
+          },
+          "value": {
+            "type": "string",
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Value"
+          },
+          "meta_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Meta Json"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "value"
+        ],
+        "title": "ScopeEntryCreate"
+      },
+      "ScopeEntryRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "type": {
+            "$ref": "#/components/schemas/ScopeEntryType"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "meta_json": {
+            "title": "Meta Json"
+          },
+          "verified_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ScopeEntryStatus"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "type",
+          "value",
+          "meta_json",
+          "verified_at",
+          "status",
+          "created_at"
+        ],
+        "title": "ScopeEntryRead"
+      },
+      "ScopeEntryStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "verified",
+          "rejected"
+        ],
+        "title": "ScopeEntryStatus"
+      },
+      "ScopeEntryType": {
+        "type": "string",
+        "enum": [
+          "ip",
+          "cidr",
+          "domain",
+          "url",
+          "api_spec",
+          "path"
+        ],
+        "title": "ScopeEntryType"
+      },
+      "ScopeEntryUpdate": {
+        "properties": {
+          "type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScopeEntryType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 10000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "meta_json": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta Json"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScopeEntryStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "ScopeEntryUpdate"
+      },
+      "ScopeValidateRequest": {
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "entry",
+              "target",
+              "redirect",
+              "ssrf",
+              "active_gate"
+            ],
+            "title": "Mode",
+            "default": "entry"
+          },
+          "type": {
+            "$ref": "#/components/schemas/ScopeEntryType",
+            "default": "url"
+          },
+          "value": {
+            "type": "string",
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Value"
+          },
+          "meta_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Meta Json"
+          },
+          "redirect_location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Redirect Location"
+          },
+          "resolve_dns": {
+            "type": "boolean",
+            "title": "Resolve Dns",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "value"
+        ],
+        "title": "ScopeValidateRequest"
+      },
+      "ScopeValidateResponse": {
+        "properties": {
+          "allowed": {
+            "type": "boolean",
+            "title": "Allowed"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "resolved_ips": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Resolved Ips"
+          },
+          "meta": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Meta"
+          }
+        },
+        "type": "object",
+        "required": [
+          "allowed",
+          "reason",
+          "message"
+        ],
+        "title": "ScopeValidateResponse"
       },
       "SettingRead": {
         "properties": {

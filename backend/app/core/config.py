@@ -35,6 +35,18 @@ class Settings(BaseSettings):
         description="Optional shared secret for local API auth (Phase 1 optional)",
     )
     log_level: str = "INFO"
+    process_max_concurrent: int = Field(
+        default=4,
+        ge=1,
+        le=64,
+        description="Max concurrent subprocesses in Process Manager",
+    )
+    process_default_timeout_seconds: float = Field(
+        default=300.0,
+        ge=1.0,
+        description="Default subprocess timeout (seconds)",
+    )
+
 
     @property
     def resolved_database_url(self) -> str:

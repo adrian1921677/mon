@@ -58,6 +58,60 @@ export interface paths {
         patch: operations["update_project_api_v1_projects__project_id__patch"];
         trace?: never;
     };
+    "/api/v1/projects/{project_id}/scope": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Scope */
+        get: operations["list_scope_api_v1_projects__project_id__scope_get"];
+        put?: never;
+        /** Create Scope */
+        post: operations["create_scope_api_v1_projects__project_id__scope_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/scope/{entry_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Scope */
+        get: operations["get_scope_api_v1_projects__project_id__scope__entry_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Scope */
+        delete: operations["delete_scope_api_v1_projects__project_id__scope__entry_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Scope */
+        patch: operations["update_scope_api_v1_projects__project_id__scope__entry_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/scope/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Validate Scope */
+        post: operations["validate_scope_api_v1_projects__project_id__scope_validate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/settings": {
         parameters: {
             query?: never;
@@ -186,6 +240,96 @@ export interface components {
             name?: string | null;
             /** Description */
             description?: string | null;
+        };
+        /** ScopeEntryCreate */
+        ScopeEntryCreate: {
+            type: components["schemas"]["ScopeEntryType"];
+            /** Value */
+            value: string;
+            /** Meta Json */
+            meta_json?: {
+                [key: string]: unknown;
+            };
+        };
+        /** ScopeEntryRead */
+        ScopeEntryRead: {
+            /** Id */
+            id: string;
+            /** Project Id */
+            project_id: string;
+            type: components["schemas"]["ScopeEntryType"];
+            /** Value */
+            value: string;
+            /** Meta Json */
+            meta_json: unknown;
+            /** Verified At */
+            verified_at: string | null;
+            status: components["schemas"]["ScopeEntryStatus"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * ScopeEntryStatus
+         * @enum {string}
+         */
+        ScopeEntryStatus: "pending" | "verified" | "rejected";
+        /**
+         * ScopeEntryType
+         * @enum {string}
+         */
+        ScopeEntryType: "ip" | "cidr" | "domain" | "url" | "api_spec" | "path";
+        /** ScopeEntryUpdate */
+        ScopeEntryUpdate: {
+            type?: components["schemas"]["ScopeEntryType"] | null;
+            /** Value */
+            value?: string | null;
+            /** Meta Json */
+            meta_json?: {
+                [key: string]: unknown;
+            } | null;
+            status?: components["schemas"]["ScopeEntryStatus"] | null;
+        };
+        /** ScopeValidateRequest */
+        ScopeValidateRequest: {
+            /**
+             * Mode
+             * @default entry
+             * @enum {string}
+             */
+            mode: "entry" | "target" | "redirect" | "ssrf" | "active_gate";
+            /** @default url */
+            type: components["schemas"]["ScopeEntryType"];
+            /** Value */
+            value: string;
+            /** Meta Json */
+            meta_json?: {
+                [key: string]: unknown;
+            };
+            /** Redirect Location */
+            redirect_location?: string | null;
+            /**
+             * Resolve Dns
+             * @default true
+             */
+            resolve_dns: boolean;
+        };
+        /** ScopeValidateResponse */
+        ScopeValidateResponse: {
+            /** Allowed */
+            allowed: boolean;
+            /** Reason */
+            reason: string;
+            /** Message */
+            message: string;
+            /** Resolved Ips */
+            resolved_ips?: string[];
+            /** Meta */
+            meta?: {
+                [key: string]: unknown;
+            };
         };
         /** SettingRead */
         SettingRead: {
@@ -381,6 +525,205 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProjectRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_scope_api_v1_projects__project_id__scope_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScopeEntryRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_scope_api_v1_projects__project_id__scope_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScopeEntryCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScopeEntryRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_scope_api_v1_projects__project_id__scope__entry_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                entry_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScopeEntryRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_scope_api_v1_projects__project_id__scope__entry_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                entry_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_scope_api_v1_projects__project_id__scope__entry_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                entry_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScopeEntryUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScopeEntryRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    validate_scope_api_v1_projects__project_id__scope_validate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScopeValidateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScopeValidateResponse"];
                 };
             };
             /** @description Validation Error */
