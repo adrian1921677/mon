@@ -1,6 +1,6 @@
 # Hck Desktop (Tauri 2)
 
-Desktop-UI: Backend-Status, Projects/Scope, Tool Manager, Scan-Start (Phase 4–7 CLI).
+Desktop-UI Phase 8: Dashboard, Projects/Scope, Inventory, Security-Tabs → Scan Manager (Live-Fortschritt), Findings, Reports, Tool Manager, Settings.
 
 ## Scripts
 
@@ -15,4 +15,4 @@ Desktop-UI: Backend-Status, Projects/Scope, Tool Manager, Scan-Start (Phase 4–
 
 - Spec: `openapi.json` (aus FastAPI exportiert)
 - Typen: `src/api/schema.d.ts`
-- Wrapper: `src/api/client.ts`
+- Wrapper: `src/api/client.ts` (Findings, Dashboard, Reports inkl. Blob-Download)

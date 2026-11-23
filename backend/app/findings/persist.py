@@ -7,7 +7,14 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.db.models import Evidence, Finding, FindingOccurrence, FindingSeverity
+from app.db.models import (
+    Evidence,
+    Finding,
+    FindingConfidence,
+    FindingOccurrence,
+    FindingSeverity,
+    FindingStatus,
+)
 from app.findings.fingerprint import fingerprint_for
 from app.scanners.base import NormalizedFinding
 
@@ -34,6 +41,37 @@ def _map_severity(raw: str) -> FindingSeverity:
         return FindingSeverity.info
 
 
+def _map_confidence(raw: Any) -> FindingConfidence:
+    if raw is None:
+        return FindingConfidence.unknown
+    key = str(raw).strip().lower()
+    aliases = {
+        "certain": "high",
+        "confirmed": "high",
+        "likely": "medium",
+        "possible": "low",
+        "tentative": "low",
+        "0": "low",
+        "1": "low",
+        "2": "medium",
+        "3": "high",
+        "4": "high",
+    }
+    key = aliases.get(key, key)
+    try:
+        return FindingConfidence(key)
+    except ValueError:
+        return FindingConfidence.unknown
+
+
+def _meta_str(meta: dict[str, Any], *keys: str) -> str | None:
+    for key in keys:
+        val = meta.get(key)
+        if isinstance(val, str) and val.strip():
+            return val.strip()
+    return None
+
+
 def persist_normalized_findings(
     db: Session,
     *,
@@ -51,6 +89,11 @@ def persist_normalized_findings(
     stored: list[Finding] = []
     for item in findings:
         fp = fingerprint_for(scanner_id, item.fingerprint_parts)
+        meta = dict(item.meta or {})
+        remediation = _meta_str(meta, "remediation", "fix", "solution")
+        description = _meta_str(meta, "description", "detail", "message")
+        confidence = _map_confidence(meta.get("confidence"))
+
         row = (
             db.query(Finding)
             .filter(Finding.project_id == project_id, Finding.fingerprint == fp)
@@ -64,6 +107,10 @@ def persist_normalized_findings(
                 severity=_map_severity(item.severity),
                 category=item.category[:128],
                 scanner_id=scanner_id,
+                status=FindingStatus.open,
+                confidence=confidence,
+                remediation=remediation,
+                description=description,
                 first_seen_at=now,
                 last_seen_at=now,
             )
@@ -74,6 +121,12 @@ def persist_normalized_findings(
             row.severity = _map_severity(item.severity)
             row.category = item.category[:128]
             row.last_seen_at = now
+            if confidence is not FindingConfidence.unknown:
+                row.confidence = confidence
+            if remediation:
+                row.remediation = remediation
+            if description:
+                row.description = description
 
         db.add(
             FindingOccurrence(

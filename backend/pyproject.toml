@@ -1,7 +1,7 @@
 [project]
 name = "hck-backend"
-version = "0.4.0"
-description = "Local pentesting platform backend (Phase 4: Nmap/Semgrep/Trivy/Gitleaks CLI)"
+version = "0.8.0"
+description = "Local pentesting platform backend (Phase 8: Findings, Dashboard, Reporting)"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

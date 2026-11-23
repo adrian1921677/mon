@@ -13,6 +13,7 @@ from app.db.models import ScopeEntry, ScopeEntryStatus, ScopeEntryType
 from app.scope.engine import ScopeEngine
 from app.scope.rate_limits import DEFAULT_RATE_LIMITS, SETTING_RATE_LIMITS
 from app.scope.types import ScopeTarget, ValidationReason, ValidationResult
+from app.services.assets_service import upsert_asset_from_scope
 from app.services.audit import record_audit
 from app.services.projects import get_project
 from app.services import settings_service
@@ -99,6 +100,12 @@ def create_scope_entry(
     )
     db.add(entry)
     db.flush()
+    upsert_asset_from_scope(
+        db,
+        project_id=project_id,
+        asset_type=entry.type.value,
+        identifier=entry.value,
+    )
     record_audit(
         db,
         action="scope.created",

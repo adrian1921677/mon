@@ -65,6 +65,19 @@ class FindingSeverity(str, enum.Enum):
     critical = "critical"
 
 
+class FindingStatus(str, enum.Enum):
+    open = "open"
+    fixed = "fixed"
+    false_positive = "false_positive"
+
+
+class FindingConfidence(str, enum.Enum):
+    unknown = "unknown"
+    low = "low"
+    medium = "medium"
+    high = "high"
+
+
 class Project(Base):
     __tablename__ = "projects"
 
@@ -264,6 +277,18 @@ class Finding(Base):
     )
     category: Mapped[str] = mapped_column(String(128), nullable=False)
     scanner_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    status: Mapped[FindingStatus] = mapped_column(
+        Enum(FindingStatus, name="finding_status"),
+        nullable=False,
+        default=FindingStatus.open,
+    )
+    confidence: Mapped[FindingConfidence] = mapped_column(
+        Enum(FindingConfidence, name="finding_confidence"),
+        nullable=False,
+        default=FindingConfidence.unknown,
+    )
+    remediation: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     first_seen_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -277,6 +302,7 @@ class Finding(Base):
 
     __table_args__ = (
         UniqueConstraint("project_id", "fingerprint", name="uq_findings_project_fingerprint"),
+        Index("ix_findings_project_status_severity", "project_id", "status", "severity"),
     )
 
 
