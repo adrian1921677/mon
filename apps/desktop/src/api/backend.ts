@@ -8,6 +8,12 @@ export type BackendInfo = {
   port: number;
   baseUrl: string;
   pid: number | null;
+  needsSetup?: boolean;
+  lastError?: string | null;
+  pythonPath?: string | null;
+  logPath?: string | null;
+  dataDir?: string | null;
+  backendDir?: string | null;
 };
 
 export async function getBackendInfo(): Promise<BackendInfo> {
@@ -20,6 +26,16 @@ export async function startBackend(): Promise<BackendInfo> {
 
 export async function stopBackend(): Promise<BackendInfo> {
   return invoke<BackendInfo>("stop_backend");
+}
+
+/** Create/repair AppData venv and start the backend (first-run). */
+export async function setupBackend(): Promise<BackendInfo> {
+  return invoke<BackendInfo>("setup_backend");
+}
+
+/** Reveal backend.log in the system file manager. */
+export async function revealBackendLog(): Promise<string> {
+  return invoke<string>("reveal_backend_log");
 }
 
 /** Detect whether we are inside a Tauri webview. */

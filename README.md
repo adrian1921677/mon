@@ -1,4 +1,4 @@
-# Hck — Lokale Pentesting-Plattform (Phase 9)
+# Hck — Lokale Pentesting-Plattform (Phase 9.1)
 
 Monorepo für die **lokale** Windows-11-Sicherheitsplattform. Scan-Engine und API laufen nur auf `127.0.0.1`.
 
@@ -102,20 +102,25 @@ npm run tauri:build:nsis     # nur Setup-EXE
 npm run tauri:build:msi      # nur MSI (WiX)
 ```
 
-Nach Installation einmal Backend-venv im AppData anlegen:
+Nach Installation:
+
+1. Python 3.11+ (python.org, „Add to PATH“)
+2. Hck starten → bei Offline **„Backend einrichten“** in der UI (legt AppData-venv an)
+3. Alternativ: `setup-backend.ps1 -Portable` (liegt im Installationsordner / Release-Assets)
 
 ```powershell
-.\scripts\windows\setup-backend.ps1 -Portable
+# nur falls der UI-Button nicht genutzt wird:
+.\setup-backend.ps1 -Portable
 ```
 
 Details und **Linux-CI-Grenzen** (MSI nur auf Windows, NSIS-Cross-Compile nicht in CI): [`docs/windows-packaging.md`](docs/windows-packaging.md).
 
 ### Backend-Bundling / Start-Pfad
 
-1. Installer legt Backend-Quellen unter den Tauri-**Resources**-Ordner (`backend/`).
-2. Desktop-Shell startet Uvicorn gegen `app.main:app` mit `HCK_DATA_DIR` = App-Data.
-3. Python: `HCK_PYTHON` → `%LOCALAPPDATA%\com.hck.platform\python-venv` → `backend\.venv` → portable `backend\python` → `py -3`.
-4. Log: `backend.log` im App-Data-Verzeichnis.
+1. Installer legt Backend-Quellen unter den Tauri-**Resources**-Ordner (`backend/`) + `setup-backend.ps1`.
+2. Desktop-Shell startet Uvicorn gegen `app.main:app` mit `HCK_DATA_DIR` = App-Data; wartet auf Port 8765 / erkennt Sofort-Crash.
+3. Python: `HCK_PYTHON` → AppData-`python-venv` → `backend\.venv` → portable `backend\python` → System-Python. Fehlt `uvicorn` → Auto-Bootstrap des AppData-venvs.
+4. Log: `backend.log` / `backend-setup.log` im App-Data-Verzeichnis.
 
 ---
 

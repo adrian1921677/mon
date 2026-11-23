@@ -16,6 +16,8 @@ import {
 import {
   getBackendInfo,
   isTauriRuntime,
+  revealBackendLog,
+  setupBackend,
   startBackend,
   type BackendInfo,
 } from "./api/backend";
@@ -72,6 +74,8 @@ export default function App() {
   const [activeTests, setActiveTests] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [setupBusy, setSetupBusy] = useState(false);
+  const [setupHint, setSetupHint] = useState<string | null>(null);
 
   const client = useMemo(
     () => createClient(backend?.baseUrl ?? undefined),
@@ -133,11 +137,18 @@ export default function App() {
     setError(null);
     try {
       if (isTauriRuntime()) {
-        const info = await getBackendInfo();
+        let info = await getBackendInfo();
         setBackend(info);
         if (!info.running) {
-          await startBackend();
-          setBackend(await getBackendInfo());
+          try {
+            info = await startBackend();
+            setBackend(info);
+          } catch (startErr) {
+            setBackend(await getBackendInfo());
+            throw startErr instanceof Error
+              ? startErr
+              : new Error(String(startErr));
+          }
         }
       } else {
         setBackend({
@@ -190,6 +201,42 @@ export default function App() {
     const id = window.setInterval(() => void refresh(), 8000);
     return () => window.clearInterval(id);
   }, [refresh]);
+
+  async function onSetupBackend() {
+    if (!isTauriRuntime()) return;
+    setSetupBusy(true);
+    setSetupHint(null);
+    setError(null);
+    try {
+      setSetupHint(
+        "Richte Python-venv unter AppData ein und installiere Backend-Abhängigkeiten…",
+      );
+      const info = await setupBackend();
+      setBackend(info);
+      setSetupHint("Setup OK — prüfe Verbindung…");
+      await refresh();
+      setSetupHint(null);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg);
+      setSetupHint(null);
+      try {
+        setBackend(await getBackendInfo());
+      } catch {
+        /* ignore */
+      }
+    } finally {
+      setSetupBusy(false);
+    }
+  }
+
+  async function onRevealLog() {
+    try {
+      await revealBackendLog();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
 
   async function onCreate(e: FormEvent) {
     e.preventDefault();
@@ -884,23 +931,84 @@ export default function App() {
           </div>
         </header>
 
-        {error ? (
+        {error || (connection === "offline" && isTauriRuntime()) ? (
           <div
             role="alert"
             className="mb-5 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-[var(--danger)]"
           >
-            {error}
+            {error ? <div className="whitespace-pre-wrap">{error}</div> : null}
             {connection === "offline" ? (
-              <span className="mt-1 block text-[var(--muted)]">
+              <div className="mt-3 space-y-3 text-[var(--muted)]">
                 {isTauriRuntime() ? (
                   <>
-                    Backend-Start fehlgeschlagen? Windows:{" "}
-                    <code className="font-mono">
-                      .\scripts\windows\setup-backend.ps1
-                    </code>{" "}
-                    (nach Installer:{" "}
-                    <code className="font-mono">-Portable</code>). Log im App-Data-
-                    Ordner: <code className="font-mono">backend.log</code>
+                    <p className="text-[var(--ink)] font-medium">
+                      Backend lokal starten (einmalig nach Installation)
+                    </p>
+                    <ol className="list-decimal space-y-1 pl-5 text-xs">
+                      <li>
+                        Python 3.11+ von{" "}
+                        <span className="font-mono">python.org</span> installieren
+                        (Haken „Add to PATH“).
+                      </li>
+                      <li>
+                        Unten „Backend einrichten“ klicken — legt automatisch{" "}
+                        <code className="font-mono">python-venv</code> unter AppData
+                        an.
+                      </li>
+                      <li>
+                        Alternativ PowerShell:{" "}
+                        <code className="font-mono">
+                          setup-backend.ps1 -Portable
+                        </code>{" "}
+                        (Release-Asset oder Installationsordner).
+                      </li>
+                    </ol>
+                    {backend?.lastError || backend?.logPath || backend?.dataDir ? (
+                      <div className="rounded border border-[var(--line)] bg-white/70 px-3 py-2 font-mono text-[11px] text-[var(--ink)]">
+                        {backend.lastError ? (
+                          <div className="mb-1 whitespace-pre-wrap text-[var(--danger)]">
+                            {backend.lastError}
+                          </div>
+                        ) : null}
+                        {backend.dataDir ? <div>AppData: {backend.dataDir}</div> : null}
+                        {backend.logPath ? <div>Log: {backend.logPath}</div> : null}
+                        {backend.backendDir ? (
+                          <div>Backend: {backend.backendDir}</div>
+                        ) : null}
+                        {backend.pythonPath ? (
+                          <div>Python: {backend.pythonPath}</div>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {setupHint ? (
+                      <p className="text-xs text-[var(--warn)]">{setupHint}</p>
+                    ) : null}
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        disabled={setupBusy}
+                        onClick={() => void onSetupBackend()}
+                        className="rounded bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-[var(--accent-ink)] disabled:opacity-50"
+                      >
+                        {setupBusy ? "Richte ein…" : "Backend einrichten"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={setupBusy}
+                        onClick={() => void refresh()}
+                        className="rounded border border-[var(--line)] bg-white px-3 py-1.5 text-sm disabled:opacity-50"
+                      >
+                        Erneut prüfen
+                      </button>
+                      <button
+                        type="button"
+                        disabled={setupBusy}
+                        onClick={() => void onRevealLog()}
+                        className="rounded border border-[var(--line)] bg-white px-3 py-1.5 text-sm disabled:opacity-50"
+                      >
+                        Log öffnen
+                      </button>
+                    </div>
                   </>
                 ) : (
                   <>
@@ -908,7 +1016,7 @@ export default function App() {
                     <code className="font-mono">cd backend && python -m app.main</code>
                   </>
                 )}
-              </span>
+              </div>
             ) : null}
           </div>
         ) : null}
