@@ -12,7 +12,52 @@ export type ProjectUpdate = components["schemas"]["ProjectUpdate"];
 export type SettingRead = components["schemas"]["SettingRead"];
 export type AuditEventRead = components["schemas"]["AuditEventRead"];
 
+/** Phase-2 scope types (kept explicit so UI works before OpenAPI regen). */
+export type ScopeEntryType =
+  | "ip"
+  | "cidr"
+  | "domain"
+  | "url"
+  | "api_spec"
+  | "path";
+export type ScopeEntryStatus = "pending" | "verified" | "rejected";
+
+export interface ScopeEntryRead {
+  id: string;
+  project_id: string;
+  type: ScopeEntryType;
+  value: string;
+  meta_json: unknown;
+  verified_at: string | null;
+  status: ScopeEntryStatus;
+  created_at: string;
+}
+
+export interface ScopeEntryCreate {
+  type: ScopeEntryType;
+  value: string;
+  meta_json?: Record<string, unknown>;
+}
+
+export interface ScopeValidateRequest {
+  mode: "entry" | "target" | "redirect" | "ssrf" | "active_gate";
+  type: ScopeEntryType;
+  value: string;
+  meta_json?: Record<string, unknown>;
+  redirect_location?: string | null;
+  resolve_dns?: boolean;
+}
+
+export interface ScopeValidateResponse {
+  allowed: boolean;
+  reason: string;
+  message: string;
+  resolved_ips: string[];
+  meta: Record<string, unknown>;
+}
+
 export const DEFAULT_BASE_URL = "http://127.0.0.1:8765";
+export const SETTING_ACTIVE_TESTS = "security.active_tests_enabled";
 
 type HealthPath = paths["/health"]["get"];
 type ProjectsListPath = paths["/api/v1/projects"]["get"];
@@ -113,6 +158,36 @@ export class HckApiClient {
     const params = new URLSearchParams({ limit: String(limit) });
     if (projectId) params.set("project_id", projectId);
     return this.request<AuditEventRead[]>(`/api/v1/audit-events?${params}`);
+  }
+
+  listScope(projectId: string): Promise<ScopeEntryRead[]> {
+    return this.request<ScopeEntryRead[]>(
+      `/api/v1/projects/${encodeURIComponent(projectId)}/scope`,
+    );
+  }
+
+  createScope(projectId: string, body: ScopeEntryCreate): Promise<ScopeEntryRead> {
+    return this.request<ScopeEntryRead>(
+      `/api/v1/projects/${encodeURIComponent(projectId)}/scope`,
+      { method: "POST", body: JSON.stringify(body) },
+    );
+  }
+
+  deleteScope(projectId: string, entryId: string): Promise<void> {
+    return this.request<void>(
+      `/api/v1/projects/${encodeURIComponent(projectId)}/scope/${encodeURIComponent(entryId)}`,
+      { method: "DELETE" },
+    );
+  }
+
+  validateScope(
+    projectId: string,
+    body: ScopeValidateRequest,
+  ): Promise<ScopeValidateResponse> {
+    return this.request<ScopeValidateResponse>(
+      `/api/v1/projects/${encodeURIComponent(projectId)}/scope/validate`,
+      { method: "POST", body: JSON.stringify(body) },
+    );
   }
 }
 
