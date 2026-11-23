@@ -1,4 +1,4 @@
-# Windows Packaging (Phase 9)
+# Windows Packaging (Phase 9 / 9.1)
 
 Zielplattform: **Windows 11**. Artefakte: **NSIS** (`*-setup.exe`) und **MSI** (WiX).
 
@@ -8,18 +8,31 @@ Zielplattform: **Windows 11**. Artefakte: **NSIS** (`*-setup.exe`) und **MSI** (
 | --- | --- |
 | Desktop-UI + Tauri-Runtime | `apps/desktop` Release-Build |
 | Backend-Quellbaum | gebündelt unter `$RESOURCE/backend/` (`app/`, `alembic/`, `pyproject.toml`, …); Quellpfade in `tauri.conf.json` relativ zu `src-tauri` → `../../../backend/…` |
-| Python-Interpreter / venv | **nicht** im Installer — nach Install `setup-backend.ps1 -Portable` |
+| Setup-Script | `$RESOURCE/setup-backend.ps1` (auch Release-Asset) |
+| Python-Interpreter / venv | **nicht** im Installer — First-Run in der App oder `setup-backend.ps1 -Portable` |
 
-Kein eingebetteter CPython-Sidecar in Phase 9 (Portabilität vs. Größe). Stattdessen:
+Kein eingebetteter CPython-Sidecar (Portabilität vs. Größe). Stattdessen:
 
 1. System-Python 3.11+ (Installer von python.org, „Add to PATH“)
-2. `scripts/windows/setup-backend.ps1 -Portable` → venv unter `%LOCALAPPDATA%\com.hck.platform\python-venv`
-3. Optional: `HCK_PYTHON` auf einen festen Interpreter setzen
-4. Optional (advanced): Portable/Embeddable Python nach `$RESOURCE/backend/python/` legen
+2. **Empfohlen:** In der App **„Backend einrichten“** — legt `%LOCALAPPDATA%\com.hck.platform\python-venv` an und installiert Abhängigkeiten
+3. Alternativ: `setup-backend.ps1 -Portable` (Installationsordner oder Release-Asset)
+4. Optional: `HCK_PYTHON` auf einen festen Interpreter setzen
+5. Optional (advanced): Portable/Embeddable Python nach `$RESOURCE/backend/python/` legen
 
-Tauri sucht Interpreter in dieser Reihenfolge: `HCK_PYTHON` → AppData-venv → `backend/.venv` → `backend/python|runtime` → `py -3` / `python3`.
+Tauri sucht Interpreter in dieser Reihenfolge: `HCK_PYTHON` → AppData-venv → `backend/.venv` → `backend/python|runtime` → System-`py`/`python`. Fehlt `uvicorn`, bootstrapped die Shell automatisch das AppData-venv (sofern Python installiert ist).
 
-Backend-Logs: `%LOCALAPPDATA%\com.hck.platform\backend.log` (bzw. App-Data-Dir).
+Nach dem Spawn wartet die Shell bis Port `8765` offen ist bzw. erkennt einen Sofort-Crash und zeigt den Log-Auszug.
+
+Backend-Logs: `%LOCALAPPDATA%\com.hck.platform\backend.log` (bzw. App-Data-Dir). Setup-Log: `backend-setup.log`.
+
+## Nach der Installation (User)
+
+1. Python **3.11+** von https://www.python.org/downloads/ („Add to PATH“).
+2. Hck starten.
+3. Bei „Failed to fetch“ / Offline: Button **Backend einrichten** (ein Klick).
+4. Falls nötig: Log öffnen oder manuell  
+   `powershell -ExecutionPolicy Bypass -File "$env:LOCALAPPDATA\Hck\setup-backend.ps1" -Portable`  
+   (Pfad je nach NSIS/MSI-Ziel; Script liegt neben den Resources).
 
 ## Build auf Windows 11 (unterstützt)
 
@@ -41,12 +54,6 @@ Oder: `.\scripts\windows\build-installer.ps1`
 Artefakte typischerweise unter:
 
 `apps/desktop/src-tauri/target/release/bundle/{nsis,msi}/`
-
-Nach Installation einmal:
-
-```powershell
-.\scripts\windows\setup-backend.ps1 -Portable
-```
 
 ## GitHub Actions (Windows Runner)
 
@@ -73,11 +80,11 @@ Empfehlung: Installer über den Windows-Actions-Workflow oder lokal auf Windows 
 
 ## Manuell auf Windows validieren
 
-1. `setup-backend.ps1` → `dev-start.ps1 -Desktop` (Dev) oder Installer + `-Portable`
+1. `setup-backend.ps1` → `dev-start.ps1 -Desktop` (Dev) oder Installer + App-Button / `-Portable`
 2. `smoke-check.ps1 -StartBackend`
 3. In der UI: Projekt anlegen, Tool Manager öffnen (fehlende Tools → Hinweis, **keine** Fake-Findings)
 4. Optional: Nmap/Semgrep/… installieren (WSL/Docker je Adapter-Doku unter `backend/app/scanners/docs/`)
-5. Installer-Build: NSIS und MSI erzeugen, installieren, App starten, Health online
+5. Installer-Build: NSIS und MSI erzeugen, installieren, App starten, Health online **ohne** manuelles Script (wenn Python auf PATH)
 
 ## Smoke (Linux/CI)
 

@@ -125,7 +125,8 @@ jobs:
             "../../../backend/alembic/env.py" \
             "../../../backend/pyproject.toml" \
             "../../../backend/alembic.ini" \
-            "../../../backend/README.md"
+            "../../../backend/README.md" \
+            "../../../scripts/windows/setup-backend.ps1"
           do
             path="$base/$rel"
             if [[ ! -e "$path" ]]; then
@@ -163,10 +164,10 @@ jobs:
 
             ## Nach der Installation
             1. Python **3.11+** von https://www.python.org/downloads/ installieren („Add to PATH“).
-            2. `setup-backend.ps1` aus den Release-Assets ausführen:
-               `.\setup-backend.ps1 -Portable`
+            2. Hck starten. Bei Offline: in der App **„Backend einrichten“** (ein Klick).
+            3. Alternativ: `setup-backend.ps1 -Portable` (Installationsordner oder Release-Asset)
                → venv unter `%LOCALAPPDATA%\com.hck.platform\python-venv`.
-            3. Hck starten. Log: `%LOCALAPPDATA%\com.hck.platform\backend.log`
+            4. Log: `%LOCALAPPDATA%\com.hck.platform\backend.log`
 
             Siehe auch `windows-packaging.md` in den Assets.
           releaseDraft: false
