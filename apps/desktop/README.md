@@ -1,6 +1,6 @@
 # Hck Desktop (Tauri 2)
 
-Desktop-UI: Backend-Status, Projects/Scope, Tool Manager, Scan-Start (Phase-4-CLI).
+Desktop-UI: Backend-Status, Projects/Scope, Tool Manager, Scan-Start (Phase 4–6 CLI).
 
 ## Scripts
 

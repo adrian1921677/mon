@@ -106,6 +106,54 @@ def test_active_gate_allows_greenbone_when_enabled(client: TestClient):
     assert task["status"] == "failed"  # not installed / not implemented — no fake findings
 
 
+def test_active_gate_blocks_schemathesis(client: TestClient):
+    pid = _create_project(client)
+    res = client.post(
+        f"/api/v1/projects/{pid}/scope",
+        json={"type": "api_spec", "value": "/opt/demo/openapi.yaml", "meta_json": {}},
+    )
+    assert res.status_code == 201, res.text
+    client.put(
+        f"/api/v1/settings/{SETTING_ACTIVE_TESTS}",
+        json={"value_json": False},
+    )
+    res = client.post(
+        f"/api/v1/projects/{pid}/scans",
+        json={"scanner_ids": ["schemathesis"], "depth": "standard"},
+    )
+    assert res.status_code == 400
+    detail = res.json()["detail"]
+    assert "active" in str(detail).lower()
+
+
+def test_schemathesis_missing_binary_no_fake_findings(client: TestClient):
+    pid = _create_project(client)
+    res = client.post(
+        f"/api/v1/projects/{pid}/scope",
+        json={"type": "api_spec", "value": "/opt/demo/openapi.yaml", "meta_json": {}},
+    )
+    assert res.status_code == 201, res.text
+    _add_url_scope(client, pid, "http://10.20.30.40/")
+    client.put(
+        f"/api/v1/settings/{SETTING_ACTIVE_TESTS}",
+        json={"value_json": True},
+    )
+    res = client.post(
+        f"/api/v1/projects/{pid}/scans",
+        json={"scanner_ids": ["schemathesis"], "depth": "quick"},
+    )
+    assert res.status_code == 201, res.text
+    body = res.json()
+    task = body["tasks"][0]
+    assert task["scanner_id"] == "schemathesis"
+    assert task["status"] in {"failed", "completed"}
+    assert task["log_path"]
+    log = task["log_path"].lower()
+    if "not installed" in log or task["status"] == "failed":
+        db = _db_session(client)
+        assert db.query(Finding).filter(Finding.project_id == pid).count() == 0
+
+
 def test_echo_pipeline_with_test_flag(client: TestClient):
     pid = _create_project(client)
     _add_ip_scope(client, pid)

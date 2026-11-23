@@ -70,7 +70,14 @@ def _targets_from_scope(entries: list[ScopeEntry]) -> list[ScopeTarget]:
 def _artifact_files_from_ctx(ctx: ScanContext) -> dict[str, Path]:
     files: dict[str, Path] = {}
     opts = ctx.options or {}
-    for key in ("nmap_xml", "trivy_json", "gitleaks_json", "zap_json", "nuclei_jsonl"):
+    for key in (
+        "nmap_xml",
+        "trivy_json",
+        "gitleaks_json",
+        "zap_json",
+        "nuclei_jsonl",
+        "schemathesis_json",
+    ):
         raw = opts.get(key)
         if isinstance(raw, str) and raw:
             files[key] = Path(raw)
@@ -94,7 +101,7 @@ async def create_scan_stub(
 
     Productive scanners that are not installed → task ``failed`` (clear reason).
     Skeletons that are installed but not CLI-ready → task ``failed`` with NotImplemented.
-    Phase-4/5 CLI adapters persist real findings (fingerprint dedup).
+    Phase-4/5/6 CLI adapters persist real findings (fingerprint dedup).
     Echo only when ``allow_test_adapters`` (tests).
     """
     if not scanner_ids:

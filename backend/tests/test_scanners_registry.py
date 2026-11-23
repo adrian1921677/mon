@@ -37,6 +37,7 @@ EXPECTED_PRODUCTIVE_IDS = {
 
 PHASE4_IDS = {"nmap", "semgrep", "trivy", "gitleaks"}
 PHASE5_IDS = {"zap", "nuclei"}
+PHASE6_IDS = {"schemathesis"}
 
 
 @pytest.fixture()
@@ -74,6 +75,14 @@ def test_phase5_adapters_are_cli(registry):
         assert adapter.is_active is False
 
 
+def test_phase6_adapters_are_cli(registry):
+    for sid in PHASE6_IDS:
+        adapter = registry.get(sid)
+        assert isinstance(adapter, CliScannerAdapter)
+        assert adapter.integration_phase == 6
+        assert adapter.is_active is True
+
+
 @pytest.mark.asyncio
 async def test_phase4_missing_binary_fails_clean(registry):
     """If binary missing → ScannerNotInstalledError; never fake findings."""
@@ -107,12 +116,29 @@ async def test_phase5_missing_binary_fails_clean(registry):
 
 
 @pytest.mark.asyncio
+async def test_phase6_missing_binary_fails_clean(registry):
+    for sid in PHASE6_IDS:
+        adapter = registry.get(sid)
+        info = await adapter.check_installation()
+        if info.status is InstallationStatus.installed:
+            continue
+        targets = [
+            ScopeTarget(type=ScopeEntryType.api_spec, value="/tmp/openapi.yaml"),
+            ScopeTarget(type=ScopeEntryType.url, value="https://api.example.test"),
+        ]
+        ctx = ScanContext(project_id="p", scan_id="s", task_id="t", targets=targets)
+        pm = ProcessManager(max_concurrent=1, default_timeout_seconds=5.0)
+        with pytest.raises(ScannerNotInstalledError):
+            await adapter.execute(ctx, pm)
+
+
+@pytest.mark.asyncio
 async def test_later_phase_skeleton_still_not_implemented(registry):
-    schemathesis = registry.get("schemathesis")
+    greenbone = registry.get("greenbone")
     ctx = ScanContext(project_id="p", scan_id="s", task_id="t", targets=[])
     with pytest.raises(ScannerNotImplementedError) as exc:
-        schemathesis.normalize_findings({}, ctx)
-    assert exc.value.phase == 6
+        greenbone.normalize_findings({}, ctx)
+    assert exc.value.phase == 7
 
 
 @pytest.mark.asyncio
@@ -151,6 +177,7 @@ async def test_echo_pipeline_via_process_manager():
 def test_active_adapters_flagged(registry):
     active = {a.scanner_id for a in registry.list() if a.is_active}
     # Phase-5 ZAP/Nuclei: baseline/controlled — Active-Gate only for ZAP deep/active mode.
+    # Phase-6 Schemathesis: always Active-Gate (live API requests).
     assert "zap" not in active
     assert "nuclei" not in active
     assert "greenbone" in active
